@@ -4,7 +4,18 @@ This repository contains the code and resources used in the research paper:
 
 "High-Throughput Conjugation Reveals Strain Specific Recombination Patterns Enabling Precise Trait Mapping in *Escherichia coli*"
 
-Published in: [XXXX]
+**Published in**: [XXXX]
 
-Authors: Thibault Corneloup , Juliette Bellengier, Mélanie Magnan, Arsh Chavan, Benoit Gachet, Zoya Dixit, Coralie Pintard, Alexandra Baron, Doreen Toko, Amaury Lambert,  Alaksh Choudhury  and Olivier Tenaillon
+**Authors**: Thibault Corneloup , Juliette Bellengier et al. [link to the paper]  
+
+[image to insert]  
+
+We provide here the code to reproduce the key results and figures of the paper.
+
+## Repository Structure
+HGT_2025/  
+├── code/            *# Core scripts and functions*   
+├── data/            *# Sample or placeholder data*  
+├── results/         *# Outputs from the experiments*  
+├── README.md        *# This file*    
 
