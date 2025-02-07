@@ -20,7 +20,7 @@ ___
 └── 🖼️ rec25.png  
 ___
 
-**Paper summary**  
+### **Paper summary**  
 We provide here the codes and data to reproduce the key results and figures of the paper.
 Data can be access on: 
 <img src="rec25.jpg" alt="figure" width="300" />
