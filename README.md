@@ -18,8 +18,7 @@ This repository contains the code and resources used in the research paper:
 └── 🖼️ rec25.png  
 
 ## Paper summary
-
-![figure](rec25.jpg)  
-
-We provide here the code to reproduce the key results and figures of the paper.
+We provide here the codes and data to reproduce the key results and figures of the paper.
+Data can be access on: 
+<img src="rec25.jpg" alt="figure" width="300" />
 
