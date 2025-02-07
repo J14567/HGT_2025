@@ -9,8 +9,9 @@ This repository contains the code and resources used in the research paper:
 **Authors** : Thibault Corneloup , Juliette Bellengier et *al*. [link to the paper]  
 
 ___
+___
 
-**Repository Structure**  
+### **Repository Structure**  
 📂 HGT_2025/  
 ├── 📂 codes/  
 ├── 📂 data/  
