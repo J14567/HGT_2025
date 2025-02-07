@@ -8,7 +8,7 @@ This repository contains the code and resources used in the research paper:
 
 **Authors**: Thibault Corneloup , Juliette Bellengier et *al*. [link to the paper]  
 
-[image to insert]  
+![figure](rec25.jpg)  
 
 We provide here the code to reproduce the key results and figures of the paper.
 
