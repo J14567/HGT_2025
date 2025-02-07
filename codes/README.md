@@ -11,11 +11,15 @@ This folder contains the following files:
 ____
 
 **R files**
-- PaperConj2025_analysis.Rmd
+- `PaperConj2025_analysis.Rmd`    
+This .R notebook regroup all the codes needed for the paper figures. This files is run after the alignement and parsing of the .fastaq then .sam files.
+
 
 **python files**
-- bwa_25.py
-- ecoli_25.py
+- `bwa_25.py`
+- `ecoli_25.py`  
+<small> These python files are used for .fastaq aligned by BWA using bwa_25.py and their parsing automatized in a ecoli_25.py </small>
 
 **perl files**  
-- SortReads.pl
+- `SortReads.pl`  
+<small> This .pl is an alternative to ecoli_25.py after BWA aligment. </small>
