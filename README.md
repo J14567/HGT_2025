@@ -1,4 +1,4 @@
-# High-throughput conjugation for trait mapping
+## High-throughput conjugation for trait mapping
 
 This repository contains the code and resources used in the research paper:
 
