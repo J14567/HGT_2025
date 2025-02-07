@@ -13,9 +13,9 @@ This repository contains the code and resources used in the research paper:
 We provide here the code to reproduce the key results and figures of the paper.
 
 ## Repository Structure
-HGT_2025/  
-├── code/            *# Core scripts and functions*   
-├── data/            *# Sample or placeholder data*  
-├── results/         *# Outputs from the experiments*  
-├── README.md        *# This file*    
-
+📂 HGT_2025/  
+├── 📂 codes/  
+├── 📂 data/  
+├── 📂 results/  
+├── 📄 README.md  
+└── 🖼️ rec25.png  
