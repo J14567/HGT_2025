@@ -8,9 +8,6 @@ This repository contains the code and resources used in the research paper:
 
 **Authors**: Thibault Corneloup , Juliette Bellengier et *al*. [link to the paper]  
 
-![figure](rec25.jpg)  
-
-We provide here the code to reproduce the key results and figures of the paper.
 
 ## Repository Structure
 📂 HGT_2025/  
@@ -19,3 +16,10 @@ We provide here the code to reproduce the key results and figures of the paper.
 ├── 📂 results/  
 ├── 📄 README.md  
 └── 🖼️ rec25.png  
+
+
+
+![figure](rec25.jpg)  
+
+We provide here the code to reproduce the key results and figures of the paper.
+
