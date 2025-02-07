@@ -1,12 +1,12 @@
 
 📂 results/  
 ├── 🖼️ Figure2.tiff  
-├── 🖼️ Figure3B.tiff  (old version)   
+├── 🖼️ Figure3B.tiff  *(old version)*     
 ├── 🖼️ Figure3C.tiff  
 ├── 🖼️ Figure4C.tiff  
 ├── 🖼️ Figure4D.tiff  
 ├── 🖼️ Figure5B.tiff  
-├── 🖼️ Figure5B_40.tiff  (old version)   
+├── 🖼️ Figure5B_40.tiff  *(old version)*  
 ├── 🖼️ Figure5D.tiff  
 ├── 🖼️ Figure5F.tiff  
 ├── 🖼️ Figure5G.tiff  
