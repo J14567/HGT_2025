@@ -9,5 +9,5 @@ This folder contains the following files:
 - bwa_25.py
 - ecoli_25.py
 
-**perl files**
+**perl files**  
 -SortReads.pl
