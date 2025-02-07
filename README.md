@@ -6,7 +6,7 @@ This repository contains the code and resources used in the research paper:
 
 **Published in**: [XXXX]
 
-**Authors**: Thibault Corneloup , Juliette Bellengier et al. [link to the paper]  
+**Authors**: Thibault Corneloup , Juliette Bellengier et *al*. [link to the paper]  
 
 [image to insert]  
 
