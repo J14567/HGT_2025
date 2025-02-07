@@ -1,4 +1,4 @@
-# HGT_2025
+# High-throughput conjugation for trait mapping
 
 This repository contains the code and resources used in the research paper:
 
