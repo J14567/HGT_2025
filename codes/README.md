@@ -10,4 +10,4 @@ This folder contains the following files:
 - ecoli_25.py
 
 **perl files**  
--SortReads.pl
+- SortReads.pl
