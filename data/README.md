@@ -1,4 +1,4 @@
-## Data    
+## Tables with raw data 
 
 📂 data/  
 ├── 📊 F2_paper.xlsx  
@@ -8,6 +8,7 @@
 └── 📊 SupportingInformationRec25.xlsx  
 
 <img src="table.png" alt="figure" width="600" />
+
 ___
 
 **Files used for /codes/PaperConj2025_analysis.Rmd**:
