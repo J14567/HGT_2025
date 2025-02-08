@@ -9,7 +9,7 @@ This repository contains the code and resources used in the research paper:
 **Authors** : Thibault Corneloup , Juliette Bellengier et *al*. [link to the paper]  
 
 ___
-We provide here the codes and data to reproduce the key results and figures of the paper.
+We provide here the codes and data to reproduce the key results and figures of the paper.    
 Data can be access on: 
 [link to insert]
 ___
