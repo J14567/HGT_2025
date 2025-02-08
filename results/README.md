@@ -1,5 +1,8 @@
 ## Results     
 
+This folder contains the following files:
+
+
 📂 results/  
 ├── 🖼️ Figure2.tiff  
 ├── 🖼️ Figure3B.tiff  *(old version)*     
