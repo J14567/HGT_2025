@@ -7,6 +7,7 @@
 ├── 📊 Supp_mat.xlsx  
 └── 📊 SupportingInformationRec25.xlsx  
 
+<img src="table.png" alt="figure" width="300" />
 ___
 
 **Files used for /codes/PaperConj2025_analysis.Rmd**:
