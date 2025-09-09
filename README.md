@@ -25,8 +25,9 @@ ___
 
 ### **Paper summary**  
 
-<img src="Figures/Raw_to_data_final1.png" alt="figure" width="300" />
-<img src="Figures/Raw_to_data_final2.png" alt="figure" width="300" />
+<img src="Figures/Raw_to_data_final_data1.png" alt="figure" width="300" />
+
+<img src="Figures/Raw_to_data_final_data2.png" alt="figure" width="300" />
 
 
 For further questions, feel free to contact: [juliette.bellengier@pasteur.fr]
