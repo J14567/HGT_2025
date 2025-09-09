@@ -1,4 +1,4 @@
-## High-throughput conjugation for trait mapping
+# High-throughput conjugation for trait mapping
 
 This repository contains the code and resources used in the research paper:
 
@@ -14,7 +14,7 @@ Data can be access on:
 [link to insert]
 ___
 
-### **Repository Structure**  
+## **Repository Structure**  
 📂 HGT_2025/  
 ├── 📂 codes/  
 ├── 📂 data/  
@@ -23,12 +23,12 @@ ___
 └── 🖼️ rec25.png  
 ___
 
-### **Paper summary**  
+## **Paper summary**  
 Summary of how the Figures were created with the data and tools described below.
 # **Main Figures**  
 <img src="Figures/Raw_to_final_data1.png" alt="figure" width="800" />
 
-# **Supplementary Figures**  
+### **Supplementary Figures**  
 
 <img src="Figures/Raw_to_final_data2.png" alt="figure" width="800" />
 
