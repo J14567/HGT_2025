@@ -3,6 +3,7 @@
 This repository contains the code and resources used in the research paper:
 
 **Title** : "High-Throughput Conjugation Reveals Strain Specific Recombination Patterns Enabling Precise Trait Mapping in *Escherichia coli*"
+<img src="Figure.png" alt="figure" width="400" />
 
 **Published in** : [XXXX]
 
