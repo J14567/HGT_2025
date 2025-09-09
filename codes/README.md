@@ -3,7 +3,7 @@
 This folder contains the following files:  
 
 📂 codes/  
-├── 📄 PaperConj2025_analysis.Rmd  
+├── 📄 PaperConj2025_analysis_090925.Rmd  
 ├── 📄 bwa_25.py  
 ├── 📄 analysis_downscaling.py  
 ├── 📄 downscaling.sh  
@@ -13,8 +13,9 @@ This folder contains the following files:
 ____
 
 **R files**
-- `PaperConj2025_analysis.Rmd`    
-This .R notebook regroup all the codes needed for the paper figures. This files is run after the alignement and parsing of the .fastaq then .sam files.
+- `PaperConj2025_analysis_090925.Rmd`    
+This .R notebook regroup all the codes needed for the paper main and supplementary figures. The file uses different inputs that are either the supplementary tables or output files (e;g. .txt, .sam..) of previous perl/python pipeline.
+
 
 **Bash files**
 - `downscaling.sh`    
