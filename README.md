@@ -20,7 +20,7 @@ ___
 ├── 📂 data/  
 ├── 📂 results/  
 ├── 📄 README.md  
-└── 🖼️ rec25.png  
+└── 🖼️ Figure.png  
 ___
 
 ## **Paper summary**  
