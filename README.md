@@ -24,8 +24,11 @@ ___
 ___
 
 ### **Paper summary**  
-
+Summary of how the Figures were created with the data and tools described below.
+# **Main Figures**  
 <img src="Figures/Raw_to_final_data1.png" alt="figure" width="800" />
+
+# **Supplementary Figures**  
 
 <img src="Figures/Raw_to_final_data2.png" alt="figure" width="800" />
 
