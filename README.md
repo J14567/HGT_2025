@@ -11,7 +11,7 @@ This repository contains the code and resources used in the research paper:
 
 ___
 We provide here the codes and data to reproduce the key results and figures of the paper.    
-Data can be access on: 
+Data can be found on: 
 [https://www.ncbi.nlm.nih.gov/bioproject/PRJNA1219123]
 ___
 
@@ -34,5 +34,5 @@ Summary of how the Figures were created with the data and tools described below.
 <img src="Figures/Raw_to_final_data2.png" alt="figure" width="800" />
 
 
-For further questions, feel free to contact: [juliette.bellengier@pasteur.fr]
+For further questions, feel free to contact one of the corresponding author: [juliette.bellengier@pasteur.fr]
 
