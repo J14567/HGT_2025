@@ -12,7 +12,7 @@ This repository contains the code and resources used in the research paper:
 ___
 We provide here the codes and data to reproduce the key results and figures of the paper.    
 Data can be access on: 
-[link to insert]
+[https://www.ncbi.nlm.nih.gov/bioproject/PRJNA1219123]
 ___
 
 ## **Repository Structure**  
