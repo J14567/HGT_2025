@@ -1,0 +1,2069 @@
+---
+title: "R Code for Data analysis"
+author: "Juliette Bellengier, Olivier Tenaillon"
+date: "09/09/2025"
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+### **High-Throughput Conjugation Reveals Strain Specific Recombination Patterns Enabling Precise Trait Mapping in Escherichia coli**
+
+------------------------------------------------------------------------
+
+###### [Last revised by:]{.underline} Juliette Bellengier on 11/09/2025
+
+------------------------------------------------------------------------
+
+[**Packages & Libraries installation**]{.underline}
+
+```{r setup, include=FALSE}
+# Définir un miroir CRAN
+options(repos = c(CRAN = "https://cran.rstudio.com"))
+install.packages("ggplot2")
+install.packages("scale")
+install.packages("HMM")
+install.packages("ggpubr")
+install.packages("viridis")
+install.packages("viridisLite")
+install.packages("dplyr")
+install.packages("ggpmisc")
+```
+
+```{r}
+library(HMM)
+library(dplyr)
+library(ggpmisc)
+require(lattice)
+library(viridisLite)
+library(viridis)
+library(ggplot2)
+library(ggpubr)
+library(readxl)
+library(tidyr)
+library(RColorBrewer)
+library(scales)
+library(stringr)
+
+```
+
+------------------------------------------------------------------------
+
+## [Main Figures]{.underline}
+
+[**Figure 2.B**]{.underline}
+
+```{r}
+F2<- read_excel("Fig1a3_paper/F2_paper.xlsx")
+F2$CFUdonnor <- log10(as.numeric(F2$CFUdonnor))
+F2_guide1 = F2[F2$guide =='sacB', ] 
+F2_guide1 <- F2_guide1 %>%  mutate(across(1, ~ recode(., "A" = " BW25113"))) 
+
+tiff("Figures/Figure2.tiff", width = 4.5, height = 4.5, units = "in", res = 500)
+ggplot(F2_guide1, aes(x = genotype, y = CFUdonnor, fill = guide)) + 
+  labs(y = "Log10(CFU Hfr/pNTM3 donor)", x="Genotype") +
+  geom_boxplot(color = "black", size = 0.5) +  
+  geom_point(position = position_dodge(width = 0.8),  
+             shape = 21, alpha = 0.6, stroke = 1, fill = "#b1e9e3", color = "black") + 
+  scale_fill_manual(values = c("#b1e9e3")) +  
+  theme_bw() + theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "none", 
+    panel.grid.major = element_blank(), 
+    panel.grid.minor = element_blank(),  
+    panel.border = element_blank()) +
+  geom_vline(xintercept = seq(0.5, length(unique(F2_guide1$genotype)) - 0.5, by = 1), 
+             color = "gray", size = 0.3, linetype = "solid")
+```
+
+------------------------------------------------------------------------
+
+[**Figure 3.B**]{.underline}
+
+```{r}
+F2 <- F2 %>% mutate(across(1, ~ recode(., "A" = " BW25113"))) 
+F2$guide <- factor(F2$guide)  
+
+###test normalité
+F2_testnorm <- F2 %>%
+  filter(genotype == "rfe")
+shapiro_results <- shapiro.test(F2_testnorm$CFUdonnor)
+print(shapiro_results) # pvalue < 0.05 data non normales donc pas KW test
+######
+
+tiff("Figures/Figure3B.tiff", width = 4.5, height = 4.5, units = "in", res = 500)
+ggplot(F2, aes(x = genotype, y = CFUdonnor, fill = guide)) + 
+  labs(y = "Log10(CFU Hfr/pNTM3 donor)", x="Genotype") +
+  geom_boxplot(color = "black", size = 0.5, position = position_dodge(width = 0.8)) + 
+  geom_point(aes(fill = guide),  
+             position = position_dodge(width = 0.8),  
+             shape = 21, alpha = 0.8, stroke = 1, color ="black") + 
+  scale_fill_manual(values = c("#b1e9e3", "#cbb1e9")) +  
+  scale_color_manual(values = c("#b1e9e3", "#cbb1e9"))+
+  theme_bw() +  
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),  
+    legend.position = "none",  
+    panel.grid.major = element_blank(),  
+    panel.grid.minor = element_blank(),  
+    panel.border = element_blank()  
+  ) +
+  geom_vline(xintercept = seq(0.5, length(unique(F2$genotype)) - 0.5, by = 1), 
+             color = "gray", size = 0.3, linetype = "solid")
+```
+
+------------------------------------------------------------------------
+
+[**Figure 4.B**]{.underline}
+
+```{r}
+F5B<- read_excel("Fig1a3_paper/F5B.xlsx")
+F5B$genotype_label <- paste0("∆", F5B$genotype)
+F5B$distance <- as.factor(F5B$distance)
+F5B$transconjugant <- as.numeric(F5B$transconjugant)
+F5B$distance_genotype <- paste(F5B$distance, F5B$genotype_label, sep = " \n ")
+ordered_levels <- F5B %>%
+  distinct(distance, genotype_label, distance_genotype) %>%
+  arrange(as.numeric(distance)) %>%
+  pull(distance_genotype)
+
+# Convertir en facteur ordonné
+F5B$distance_genotype <- factor(F5B$distance_genotype, levels = unique(ordered_levels))
+
+# stats <- F5B %>%
+#   group_by(distance_genotype) %>%
+#   summarise(p_value = shapiro.test(transconjugant)$p.value)
+
+tiff("Figures/Figure4B.tiff", width = 4.5, height = 4.5, units = "in", res = 500)
+ggplot(F5B, aes(x = distance_genotype, y = transconjugant)) + 
+  labs(y = "Fraction of galK+ recombinants", 
+       x = " Genetic distance from galK (in kb)") + 
+  geom_boxplot(fill = "#FFB74D") +  
+  geom_point(fill="#FFB74D", color = "black",  
+             shape = 21,  
+             alpha = 0.7,  
+             stroke = 1,  
+             position = position_jitter(width = 0.2)) +  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  theme_bw() + theme(axis.text.x = element_text(angle = 45, hjust = 1),legend.position = "none")
+```
+
+------------------------------------------------------------------------
+
+[**Figure 4.C**]{.underline}
+
+```{r}
+#F4D <- read_excel("Fig1a3_paper/F5D.xlsx")
+F4D <- data.frame(
+  Recipient = c("K12", "Rel606", "HS", "536"),
+  hfr1 = c(0.047794118, 0.091654021, 0.006951872, 1.93424e-06),
+  hfr2 = c(0.046221662, 0.068394649, 0.003275401, 1.11111e-06)
+)
+F4D_long <- F4D %>%
+  pivot_longer(
+    cols = c(hfr1, hfr2),names_to = "HFR",values_to = "CFUratio"  
+  )
+F4D_long$CFUratio <- F4D_long$CFUratio
+F4D_mean <- F4D_long %>%
+  group_by(Recipient) %>%
+  summarise(moyenne = mean(CFUratio, na.rm = TRUE))
+F4D_long$Recipient <- factor(F4D_long$Recipient, levels = c("K12", "Rel606", "HS", "536"))
+F4D_mean$Recipient <- factor(F4D_mean$Recipient, levels = c("K12", "Rel606", "HS", "536"))
+tiff("Figures/Figure4C.tiff", width = 5.5, height = 4.5, units = "in", res = 1200)
+
+ggplot(F4D_long, aes(x = Recipient, y = CFUratio)) +
+  labs(x = "Recipient", y = "Log10( Recombinant/Recipient)") + 
+  geom_point(color = "gold2", size = 3) + 
+  geom_point(data = F4D_mean, aes(x = Recipient, y = moyenne), shape = 17, color = "darkblue", size = 4) + 
+    geom_text(
+    data = F4D_mean,
+    aes(x = Recipient, y = moyenne, label = paste0(round(moyenne*100, 5), "%")),
+    hjust = -0.2,
+    color = "darkblue",
+    size = 2.5
+  )+
+  scale_y_log10(labels = trans_format("log10", math_format(10^.x)))+
+  theme_bw() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),legend.position = "none")
+dev.off()
+```
+
+------------------------------------------------------------------------
+
+[**Figure 5.B**]{.underline}
+
+```{r echo=TRUE, warning=FALSE, message=FALSE}
+# Load library
+library(changepoint)
+
+#Folder="HS_K12/"
+Folder="REL606_K12/"
+Folder="536_K12/"
+input=paste(Folder, "FrequenciesOutputs.txt",sep="")
+tab<-read.table(input,h=T)
+Totaldata=c()
+TotalFiltered=c()
+RecTotal=c()
+output=paste(Folder,"VisualisationOfRecombinations.pdf",sep="")
+pdf(output)
+
+####Step 1: Produce table with recombined regions using changepoints for each clone
+for (i in c(3:ncol(tab))){
+  print(i)
+  Strainid=dimnames(tab)[[2]][i]
+  tabnona=tab[!is.na(tab[,i]),i]
+  pos=tab[!is.na(tab[,i]),2]
+  
+  #CHANGEPOINT MODULE
+  #tablen=length(tabnona)
+  #cpt <- cpt.mean(tabnona, method = "PELT", penalty = "MBIC")  
+  # Also try "BinSeg" for binary segmentation
+  cpt <- cpt.mean(tabnona, method = "PELT",  penalty = "Manual", pen.value = 3)
+  
+  # Extract indices where shifts happen
+  change_points <- cpts(cpt)
+  
+  # Extract segment means (plateau values)
+  plateau_values <- param.est(cpt)$mean
+  
+  # Combine as a data.frame
+  change_points <- cpts(cpt)
+  starts <- pos[c(1, change_points + 1)]
+  ends   <- pos[c(change_points, length(tabnona))]
+  plateau_values <- param.est(cpt)$mean
+  
+  # Now construct the data.frame
+  plateaus <- data.frame(
+    Strain=rep(dimnames(tab)[[2]][i],length(starts)),
+    start = starts,
+    end = ends,
+    value = plateau_values
+  )
+  Totaldata=rbind(Totaldata,plateaus)
+  #print(plateaus)
+  
+  
+  #collapse fragments with value higher than 0.01
+  plateausFiltered=plateaus
+  previousstate=0
+  j=1
+  while(j<=length(plateausFiltered[,1]))
+  {
+    if (plateausFiltered[j,]$value>0.1 & previousstate>0.1)
+    {
+      #fuse cells
+      plateausFiltered[j-1,]$end=plateausFiltered[j,]$end
+      plateausFiltered[j-1,]$value=((plateausFiltered[j-1,]$end-plateausFiltered[j-1,]$start)*plateausFiltered[j-1,]$value+(plateausFiltered[j,]$end-plateausFiltered[j,]$start)*plateausFiltered[j,]$value)/((plateausFiltered[j-1,]$end-plateausFiltered[j-1,]$start)+(plateausFiltered[j,]$end-plateausFiltered[j,]$start))
+      plateausFiltered<-plateausFiltered[-j,]
+      previousstate=plateausFiltered[j-1,]$value
+    }else{
+      previousstate=plateausFiltered[j,]$value 
+      j=j+1}
+    print(c(i,j))
+  }
+  TotalFiltered=rbind(TotalFiltered,plateausFiltered)
+  
+  RecTable=data.frame()
+  j=1
+  limit=length(plateausFiltered[,1])
+  if (length(plateausFiltered[plateausFiltered$value>0.1,1]>0))
+  {
+    while(j<=limit)
+    {
+      if (plateausFiltered[j,]$value>0.1)
+      {
+        if (j==1)#first fregment is recombined
+        {
+          if (plateausFiltered[limit,]$value>0.1)#last fragment is recombined
+          {
+            RecTable=rbind(RecTable,c(Strainid,plateausFiltered[limit-1,]$end, plateausFiltered[limit,]$start, plateausFiltered[j,]$end, plateausFiltered[j+1,]$start,plateausFiltered[j,]$end+plateausFiltered[limit,]$end-plateausFiltered[limit,]$start+1))
+            limit=limit-1
+          }else
+          {
+            RecTable=rbind(RecTable,c(Strainid,0, plateausFiltered[j,]$start, plateausFiltered[j,]$end, plateausFiltered[j+1,]$start,plateausFiltered[j,]$end-starplateausFiltered[j,]$start+1))
+          }
+          
+        }
+        else{
+          if (j<=length(plateausFiltered[,1]))
+          {
+            RecTable=rbind(RecTable,c(Strainid,plateausFiltered[j-1,]$end, plateausFiltered[j,]$start, plateausFiltered[j,]$end, plateausFiltered[j+1,]$start,plateausFiltered[j,]$end-plateausFiltered[j,]$start+1))
+          }
+          if (j==length(plateausFiltered[,1]))
+          {
+            RecTable=rbind(RecTable,c(Strainid,plateausFiltered[j-1,]$end, plateausFiltered[j,]$start, plateausFiltered[j,]$end, plateausFiltered[j+1,]$end,plateausFiltered[j,]$end-plateausFiltered[j,]$start+1))
+          }
+        }
+        
+      }
+      j<-j+1}
+    dimnames(RecTable)[[2]]=c("Strain","LargeStart","Start","End","LargeEnd","Length")
+    RecTotal=rbind(RecTotal,RecTable)
+  }
+  tiff(filename = paste0("Figure/Figure5B_", Strainid, ".tiff"), 
+       width = 4.5, height = 4.5, units = "in", res = 500)
+  plot(pos,tabnona,pch=20,main=Strainid, 
+       xlab = "Genome position (bp)", ylab = "Donor allelic Frequency")
+  for (j in c(1:length(plateaus[,1])))
+  {lines(c(plateaus[j,]$start,plateaus[j,]$end),rep(plateaus[j,]$value,2),col="red",lwd=2)
+    if (j>1)
+    {lines(rep(plateaus[j,]$start,2),c(plateaus[j-1,]$value,plateaus[j,]$value),col="red",lty="dotted",lwd=2)}
+    if (j<length(plateaus[,1]))
+      {abline(v=plateaus[j,]$endt,col="red",lty="dotted",lwd=2)}
+  }
+  dev.off()}
+
+print(Totaldata)
+output=paste(Folder,"RecombinedFragments0509.txt",sep="")
+write.table(file=output,Totaldata,quote=FALSE)
+output=paste(Folder,"RecombinedFragmentsRegrouped0509.txt",sep="")
+write.table(file=output,TotalFiltered,quote=FALSE)
+output=paste(Folder,"RecombinedFragmentsStats0509.txt",sep="")
+write.table(file=output,RecTotal,quote=FALSE)
+print(RecTotal)
+
+###Step 2: 
+input=paste(Folder,"PerfectHomologyBlocs.txt",sep="")
+HomologyBlocks=read.table(input,h=T)
+
+
+#Variables storing BEFORE and AFTER recombined regions
+RecTotalPlus<-RecTotal
+RecTotalPlus$nbblocLeft=0
+RecTotalPlus$HomologyLengthLeft=0
+RecTotalPlus$nbblocRight=0
+RecTotalPlus$HomologyLengthRight=0
+
+for (j in c(1:nrow(RecTotalPlus)))
+{
+  indexrL= which(HomologyBlocks$Ref_end==as.numeric(RecTotal[j,]$Start)-1)
+  indexlL= which(HomologyBlocks$Ref_start==as.numeric(RecTotal[j,]$LargeStart)+1)
+  blocs=HomologyBlocks[indexlL:indexrL,]
+  len=blocs$Ref_end-blocs$Ref_start+1
+  RecTotalPlus[j,]$nbblocLeft=nrow(blocs)
+  RecTotalPlus[j,]$HomologyLengthLeft=max(len)
+  
+  indexlR= which(HomologyBlocks$Ref_start==as.numeric(RecTotal[j,]$End)+1)
+  indexrR= which(HomologyBlocks$Ref_end==as.numeric(RecTotal[j,]$LargeEnd)-1)
+  blocs=HomologyBlocks[indexlR:indexrR,]
+  len=blocs$Ref_end-blocs$Ref_start+1
+  RecTotalPlus[j,]$nbblocRight=nrow(blocs)
+  RecTotalPlus[j,]$HomologyLengthRight=max(len)
+}
+a=hist(c(log10(RecTotalPlus[RecTotalPlus$nbblocLeft==1,]$HomologyLengthLeft),log10(RecTotalPlus[RecTotalPlus$nbblocRight==1,]$HomologyLengthRight)), plot=FALSE ,breaks=seq(0,4.25,0.25))
+hist(log10(HomologyBlocks$Ref_end-HomologyBlocks$Ref_start), col = rgb(1, 0, 0, 0.5), main = "Overlapping Histograms", xlab = "Value",freq = FALSE,ylim=c(0,max(a$density)),breaks=seq(0,4.5,0.25))
+hist(c(log10(RecTotalPlus[RecTotalPlus$nbblocLeft==1,]$HomologyLengthLeft),log10(RecTotalPlus[RecTotalPlus$nbblocRight==1,]$HomologyLengthRight)), col = rgb(0, 0, 1, 0.5), add = TRUE,freq = FALSE,breaks=seq(0,4.25,0.25))
+
+
+MEPS=25 #longueur minimale pour initier la recombinaison
+nbbloclim=1
+Bloclen=HomologyBlocks$Ref_end-HomologyBlocks$Ref_start+1
+
+subfragmentsL <- unlist(mapply(function(x) rep(x, x - MEPS + 1), Bloclen[Bloclen>=MEPS]))
+subfragmentsR <- unlist(mapply(function(x) rep(x, x - MEPS + 1), Bloclen[Bloclen>=MEPS]))
+
+hist(log10(subfragments), col = rgb(1, 0, 0, 0.5), main = "Overlapping Histograms", xlab = "Value",freq = FALSE,ylim=c(0,max(a$density)),breaks=seq(0,4.5,0.25))
+hist(c(log10(RecTotalPlus[RecTotalPlus$nbblocLeft==nbbloclim,]$HomologyLengthLeft),log10(RecTotalPlus[RecTotalPlus$nbblocRight==nbbloclim,]$HomologyLengthRight)), col = rgb(0, 0, 1, 0.5), add = TRUE,freq = FALSE,breaks=seq(0,4.5,0.25))
+
+#Only for 536
+RecTotalPlus=RecTotalPlus[RecTotalPlus$LargeStart!=4246184 & RecTotalPlus$LargeStart!=4378213 & RecTotalPlus$LargeStart!=4423738,]
+
+RecTotalPlus$zL=0
+RecTotalPlus$zR=0
+#RecTotalPlus$zLsim=0
+#RecTotalPlus$zRsim=0
+RecTotalPlus$meanL=0
+RecTotalPlus$meanR=0
+RecTotalPlus$sdL=0
+RecTotalPlus$sdR=0
+#Study local biaises... Take size in 50kb and do a Z-score. 
+scale=50000
+for (j in c(1:nrow(RecTotalPlus)))
+{
+  indexrL= which(HomologyBlocks$Ref_end==as.numeric(RecTotalPlus[j,]$Start)-1)
+  indexlR= which(HomologyBlocks$Ref_start==as.numeric(RecTotalPlus[j,]$End)+1)
+  
+  posL=HomologyBlocks[indexrL,]$Aln_end
+  posR=HomologyBlocks[indexlR,]$Aln_start
+  print(c(posL,posR))
+  #LocalBLocL=HomologyBlocks[HomologyBlocks$Aln_start>posL-scale & HomologyBlocks$Aln_end<posL+scale,]
+  #LocalBLocR=HomologyBlocks[HomologyBlocks$Aln_start>posR-scale & HomologyBlocks$Aln_end<posR+scale,]
+  LocalBLocL=HomologyBlocks[HomologyBlocks$Aln_start>posL-scale & HomologyBlocks$Aln_end<=posL,]
+  LocalBLocR=HomologyBlocks[HomologyBlocks$Aln_start>=posR & HomologyBlocks$Aln_end<posR+scale,]
+  
+  BloclenL=LocalBLocL$Ref_end-LocalBLocL$Ref_start+1
+  BloclenR=LocalBLocR$Ref_end-LocalBLocR$Ref_start+1
+  subfragmentsL <- unlist(mapply(function(x) rep(x, x - MEPS + 1), BloclenL[BloclenL>=MEPS]))
+  subfragmentsR <- unlist(mapply(function(x) rep(x, x - MEPS + 1), BloclenR[BloclenR>=MEPS]))
+  
+  #test: random sampling and Z-score
+  #possimL=sample(subfragmentsL, 1)
+  #possimR=sample(subfragmentsR, 1)
+  #zLsim=(possimL-mean(subfragmentsL))/sd(subfragmentsL)
+  #zRsim=(possimR-mean(subfragmentsR))/sd(subfragmentsR)
+  RecTotalPlus[j,]$zLsim=zLsim
+  RecTotalPlus[j,]$zRsim=zRsim
+  
+  zL=(RecTotalPlus[j,]$HomologyLengthLeft-mean(subfragmentsL))/sd(subfragmentsL)
+  zR=(RecTotalPlus[j,]$HomologyLengthRight-mean(subfragmentsR))/sd(subfragmentsR)
+  #hist(subfragmentsL,breaks=50,main=c("L",j))
+  #abline(v=RecTotalPlus[j,]$HomologyLengthLeft)
+  #hist(subfragmentsR,breaks=50,main=c("R",j))
+  #abline(v=RecTotalPlus[j,]$HomologyLengthRight)
+  
+  RecTotalPlus[j,]$zL=zL
+  RecTotalPlus[j,]$zR=zR
+  RecTotalPlus[j,]$meanL=mean(subfragmentsL)
+  RecTotalPlus[j,]$meanR=mean(subfragmentsR)
+  RecTotalPlus[j,]$sdL=sd(subfragmentsL)
+  RecTotalPlus[j,]$sdR=sd(subfragmentsR)
+}
+hist(c(RecTotalPlus$zL,RecTotalPlus$zR),breaks=100)
+boxplot(c(RecTotalPlus$zL,RecTotalPlus$zR))
+hist(c(RecTotalPlus$zLsim,RecTotalPlus$zRsim),breaks=30)
+boxplot(c(RecTotalPlus$zLsim,RecTotalPlus$zRsim))
+
+
+output=paste(Folder, "RecombinedFragmentsStatsTotal0509.txt",sep="")
+write.table(file=output,RecTotalPlus,quote=FALSE)
+print(RecTotalPlus)
+dev.off()
+
+
+# Rec_REL <- read.table("REL606_K12/RecombinedFragmentsStatsTotal.txt", sep = "")
+# Rec_REL$rec <- "REL606"
+# Rec_REL <- Rec_REL %>%
+#   mutate(Strain = ifelse(Strain == "S9", "S09", Strain))
+# Rec_HS <- read.table("HS_K12/RecombinedFragmentsStatsTotal.txt", sep = "")
+# Rec_HS$rec <- "HS"
+# Rec_536 <- read.table("536_K12/RecombinedFragmentsStatsTotal.txt", sep = "")
+# Rec_536$rec <- "536"
+# 
+# combined <- rbind(Rec_REL, Rec_HS, Rec_536)
+# counts <- combined %>%count(Strain, rec) 
+# ggplot(counts, aes(x = Strain, y = n, fill = rec)) +
+#   geom_col(position = "dodge", alpha = 0.8) +
+#   scale_fill_viridis_d(option = "Pastel")+
+#   theme_minimal() +
+#   labs(x = "Recombinant", 
+#        y = "Number of fragments",
+#        fill = "Recipient")+
+#   theme(
+#     axis.text.x = element_text(angle = 45, hjust = 1),
+#     legend.position = "right"
+#   )+geom_hline(yintercept= 1)
+```
+
+------------------------------------------------------------------------
+
+[**Figure 5.C/D/E**]{.underline}
+
+```{r}
+REL_fragments <- read.csv("Step2/19june/REL606_K12/RecombinedFragmentsStats.txt", sep = " ", na.strings = c("NA"))
+HS_fragments <- read.csv("Step2/19june/HS_K12_110925/RecombinedFragmentsStats.txt", sep = " ", na.strings = c("NA"))
+g536_fragments <- read.csv("Step2/19june/536_K12/RecombinedFragmentsStats.txt", sep = " ", na.strings = c("NA"))
+g536_fragments$recipient <- "536"
+REL_fragments$recipient <- "REL606"
+HS_fragments$recipient <- "HS"
+chromosome_length_REL <- 4629812
+chromosome_length_HS <- 4643538
+chromosome_length_536 <- 4938799
+g536_fragments=g536_fragments[g536_fragments$LargeStart!=4246184 & g536_fragments$LargeStart!=4378213 & g536_fragments$LargeStart!=4423738,]
+recs = rbind(REL_fragments,HS_fragments,g536_fragments)
+recs_summary <- recs %>%
+  group_by(recipient) %>%
+  summarise(
+    total_length = sum(Length, na.rm = TRUE),      # Somme des longueurs
+    mean_length = mean(Length, na.rm = TRUE),     # Moyenne des longueurs
+    log10_mean_length = log10(mean(Length, na.rm = TRUE)), # log10 de la moyenne
+    log10_mean_total_length = log10(sum(Length, na.rm = TRUE))  # log10 de la moyenne
+
+  )
+
+
+split_circular_intervals <- function(RecInd, chromosome_length) {
+  Rec_vf <- data.frame()
+  for (i in 1:nrow(RecInd)) {
+    row <- RecInd[i, ]
+    start <- row$Start
+    end <- row$End
+    if (start <= end) { # because circular chromosome
+      Rec_vf <- rbind(Rec_vf, row)
+    } else {
+      # First part: 0 -> end
+      row1 <- row
+      row1$Start <- 0
+      # Second part: start -> until chromosome_length
+      row2 <- row
+      row2$End <- chromosome_length
+      Rec_vf <- rbind(Rec_vf, row1, row2)
+    }
+  }
+  return(Rec_vf)
+}
+
+
+REL_final <- split_circular_intervals(REL_fragments, chromosome_length_REL)
+HS_final <- split_circular_intervals(HS_fragments, chromosome_length_HS)
+g536_final <- split_circular_intervals(g536_fragments, chromosome_length_536)
+Recs <- rbind(REL_fragments, HS_fragments, g536_fragments)
+Recs <- rbind(REL_final, HS_final,g536_final)
+write.table(file="Positions_Fragments1109CP.csv",Recs,sep=",", quote=FALSE)
+for(source in c("REL606", "HS", "536")){
+  if (source=="REL606") {
+    galkpos=769500
+    genomeLength=4629812
+    color="#155289"
+  }
+  if (source=="HS") {
+    galkpos=816000
+    genomeLength=4643538
+    color="#56B4E9"
+  }
+  if (source=="536") {
+    galkpos=816000
+    genomeLength=5500000
+    color="pink3"
+  }
+  
+  nbrecombinants <- length(unique(Recs[Recs$recipient == source,]$Strain))
+  file_name <- paste0("Figures/Figure5_", source, ".tiff")
+  tiff(file_name, width = 4.5, height = 4.5, units = "in", res = 500)  # dimensions et résolution
+  plot(NA, xlim = c(0, genomeLength), ylim = c(0, nbrecombinants), main = source, yaxt = "n", axes = FALSE,
+       xlab = "Genome position (Mb)", ylab = "Recombinants", cex.lab = 1.5, cex.axis = 1.5, cex.main = 1.5, cex.sub = 1.5)
+  axis(side = 1, at = c(0:5) * 1e6, labels = c(0:5))
+  
+  abline(v = galkpos, col = "red", lwd = 3)
+  
+  base <- 0
+  for (i in unique(Recs[Recs$recipient == source,]$Strain)) {
+    tmp <- Recs[Recs$Strain == i & Recs$recipient == source, ] 
+    
+    pointsD <- data.frame(pos = numeric(), rec = numeric())
+    pointsD[1,] <- c(0, base + 0.05)
+    
+    b <- 1
+    for (j in 1:nrow(tmp)) {
+      start <- tmp[j, "Start"]
+      end <- tmp[j, "Start"] + tmp[j, "Length"]
+      if (end > genomeLength) {
+        end <- genomeLength
+      }
+      
+      pointsD[b + 1,] <- c(start, base + 0.05)
+      pointsD[b + 2,] <- c(start, base + 0.95)
+      pointsD[b + 3,] <- c(end, base + 0.95)
+      pointsD[b + 4,] <- c(end, base + 0.05)
+      b <- b + 4
+    }
+    pointsD[b + 1,] <- c(genomeLength, base + 0.05)
+    pointsD[b + 2,] <- c(0, base + 0.05)
+    
+    polygon(c(0, 0, genomeLength, genomeLength), 
+            c(base + 0.05, base + 0.95, base + 0.95, base + 0.05), col = color)
+    polygon(pointsD, col = "#F4E6AA")
+    
+    base <- base + 1
+  }
+  dev.off()
+}
+```
+
+```{r}
+recs %>%  group_by(.[[1]]) %>%  summarise(count = n())
+
+mean_occurrences <- recs %>%
+  group_by(recipient, col1_value = recs[,1]) %>% 
+  summarise(count = n()) %>%  group_by(recipient) %>%
+  summarise(mean_count = mean(count))  
+
+mean_length <- recs %>%
+  group_by(recipient) %>%
+  summarise(
+    mean_length = mean(Length, na.rm = TRUE),
+    log10_mean_length = log10(mean(Length, na.rm = TRUE))  
+  )
+
+print(mean_length)
+```
+
+------------------------------------------------------------------------
+
+[**Figure 5G**]{.underline}
+
+```{r}
+couleurs_personnalisees = rev(c("#155289","#679df1", "#56B4E9","#9fe2f2", "pink3","pink" ))
+
+Data_rec_REL <-  subset(recs, recipient == "REL606")
+Data_rec_HS <-  subset(recs, recipient == "HS")
+Data_rec_536 <-  subset(recs, recipient == "536")
+galkpos_REL=769500
+galkpos_HS=816000
+galkpos_536=803500
+
+#Number of recombined fragments
+nb_frag_REL_gal <- nrow(Data_rec_REL)
+nb_frag_HS_gal <- nrow(Data_rec_HS)
+nb_frag_536_gal <-nrow(Data_rec_536)
+
+#Length of recombined fragments
+len_REL_gal <- Data_rec_REL$Length
+len_HS_gal <- Data_rec_HS$Length
+len_536_gal <- Data_rec_536$Length
+
+REL_galK <- Data_rec_REL[Data_rec_REL$Start <= galkpos_REL & Data_rec_REL$End >= galkpos_REL, ]
+len_REL_avec_galK <- REL_galK$Length
+HS_galK <- Data_rec_HS[Data_rec_HS$Start <= galkpos_HS & Data_rec_HS$End >= galkpos_HS, ]
+len_HS_avec_galK <- HS_galK$Length
+s536_galK <- Data_rec_536[Data_rec_536$Start <= galkpos_536 & Data_rec_536$End >= galkpos_536, ]
+len_536_avec_galK <- s536_galK$Length
+
+Recipient <- c(rep("Rel606", length(len_REL_gal)), rep("HS", length(len_HS_gal)),rep("536", length(len_536_gal)), rep("Rel606_onlyGal", length(len_REL_avec_galK)), rep("HS_OnlyGal", length(len_HS_avec_galK)),rep("536_OnlyGal", length(len_536_avec_galK)))
+
+Recipient2 <- c(rep("Rel606", length(len_REL_gal)), rep("HS", length(len_HS_gal)),rep("536", length(len_536_gal)))
+Recipient_onlyGAL <- c(rep("Rel606_onlyGal", length(len_REL_avec_galK)), rep("HS_OnlyGal", length(len_HS_avec_galK)),rep("536_OnlyGal", length(len_536_avec_galK)))
+ALL_length2 <- c(len_REL_gal,len_HS_gal,len_536_gal)
+Gal_length <-     c(len_REL_avec_galK,len_HS_avec_galK,len_536_avec_galK)
+ALL_length <- c(len_REL_gal,len_HS_gal,len_536_gal,len_REL_avec_galK, len_HS_avec_galK, len_536_avec_galK)
+
+Combined_length <- data.frame(Recipient, ALL_length)
+Combined_length_onlyGalK <- data.frame(Recipient_onlyGAL, Gal_length)
+Combined_length_sorted <- Combined_length %>% arrange(desc(Recipient))
+Total_length <- data.frame(Recipient2, ALL_length2)
+
+Combined_length_sorted <- Combined_length %>% arrange(desc(Recipient))
+Combined_length_sorted <- Combined_length_sorted %>%
+  mutate(RecipientF = Recipient)
+
+Combined_length_sorted <- Combined_length_sorted %>%
+  mutate(new_column = ifelse(grepl("Gal", Recipient), "Gal", "All"))%>%
+  mutate(Recipient = str_replace(RecipientF, "Rel606_onlyGal", "Rel606"))%>%
+  mutate(Recipient = str_replace(RecipientF, "HS_OnlyGal", "HS"))%>%
+  mutate(Recipient = str_replace(RecipientF, "536_OnlyGal", "536"))
+
+tiff("Figures/Figure5G.tiff", width = 6, height = 5, units = "in", res = 600)
+ggplot(Combined_length_sorted, aes(x = RecipientF, y = log10(ALL_length), fill = RecipientF)) +
+  geom_boxplot(width = 0.5) +  # Boxplot
+  geom_jitter(width = 0.1, shape = 21,alpha = 0.8, stroke = 1,col = "black") + 
+  labs(y = "Log10(Recombined Length)", x = "Recipient") + 
+  scale_fill_manual(values = couleurs_personnalisees) +
+  coord_flip() +  
+  theme_minimal() +  
+  theme(legend.position = "none")+
+  geom_rect(aes(xmin = 0.6, xmax = 2.40, ymin = 1.6, ymax = 6.1), 
+            color = "pink3", fill = NA, size = 1, linetype = "solid")+
+  geom_rect(aes(xmin = 2.55, xmax = 4.4, ymin = 1.6, ymax = 6.1), 
+            color = "lightblue", fill = NA, size = 1, linetype = "solid")+
+  geom_rect(aes(xmin = 4.55, xmax = 6.5, ymin = 1.6, ymax = 6.1), 
+            color = "darkblue", fill = NA, size = 1, linetype = "solid")+
+  geom_text(aes(x = 1.7, y = 2.5, label = "536"), 
+            color = "pink3", size = 4, family="Roboto",fontface = "bold") +
+  geom_text(aes(x = 3.7, y = 2.5, label = "HS"), 
+            color = "lightblue", size = 4, family="Roboto",fontface = "bold") +
+  geom_text(aes(x = 5.7, y = 2.65, label = "REL606"), 
+            color = "darkblue", size = 4, family="Roboto", fontface ="bold")+
+  stat_compare_means(
+    aes(group = RecipientF), 
+    method = "wilcox.test", 
+    comparisons = list(c("Rel606_onlyGal", "Rel606"), 
+                       c("HS_OnlyGal", "HS"), 
+                       c("536_OnlyGal", "536")),
+    label = "p.signif", 
+    hide.ns = FALSE, 
+    size = 4,
+    label.x = 1.5,      
+    label.y = 6.2,
+    tip.length =0
+  )+
+  stat_compare_means(
+    aes(group = RecipientF), 
+    method = "wilcox.test", 
+    comparisons = list(c("Rel606_onlyGal", "HS_OnlyGal")),
+    label = "p.signif", 
+    hide.ns = FALSE, 
+    size = 4,
+    label.x = 1.25,      
+    label.y = 1,
+    tip.length =0
+  )+
+  stat_compare_means(
+    aes(group = RecipientF), 
+    method = "wilcox.test", 
+    comparisons = list(c("536_OnlyGal", "Rel606_onlyGal")),
+    label = "p.signif", 
+    hide.ns = FALSE, 
+    size = 4,
+    label.x = 1.5,      
+    label.y = 0.75,
+    tip.length =0
+  )+
+  stat_compare_means(
+    aes(group = RecipientF), 
+    method = "wilcox.test", 
+    comparisons = list(c("536_OnlyGal", "HS_OnlyGal")),
+    label = "p.signif", 
+    hide.ns = FALSE, 
+    size = 4,
+    label.x = 1.25,      
+    label.y = 1.15,
+    tip.length =0
+  )+
+  theme(
+  axis.text.x = element_text(family= "Roboto",size = 12),  
+  axis.text.y = element_text(family= "Roboto",size = 12),  
+  axis.title.y = element_text(family= "Roboto", margin = margin(t = 15),size = 12), 
+  axis.title.x = element_text(family= "Roboto",margin = margin(t = 15), size = 12)
+
+)
+dev.off()
+```
+
+```{r}
+mean_length <- Combined_length_onlyGalK %>%
+  group_by(Recipient_onlyGAL) %>%
+  summarise(
+    mean_length = mean(Gal_length, na.rm = TRUE),
+    log10_mean_length = log10(mean(Gal_length, na.rm = TRUE))  
+  )
+mean_length
+```
+
+```{r}
+total_length_strain <- recs %>%
+  group_by(Strain, recipient) %>% summarise(total_length = sum(Length, na.rm = TRUE)) 
+
+mean_total_length_recipient <- total_length_strain %>%
+  group_by(recipient) %>%
+  summarise(mean_total_length = mean(total_length, na.rm = TRUE),
+    log10_mean_total_length = log10(mean(total_length, na.rm = TRUE))
+  )
+
+print(mean_total_length_recipient)
+```
+
+------------------------------------------------------------------------
+
+[**Figure 5F**]{.underline}
+
+```{r}
+tiff("Figures/Figure5F.tiff", width = 4.5, height = 4.5, units = "in", res = 500)
+Total_length$Recipient2 <- factor(Total_length$Recipient2, levels = c("Rel606", "HS", "536"))
+ggplot(Total_length, aes(x = log10(ALL_length2), fill = Recipient2)) +
+  geom_histogram(position = "identity", alpha = 0.5, bins = 17, color = "black", size = 0.2) + 
+  labs(x = "Log10 (Fragment Length)", y = "Count") + 
+  theme_minimal() + 
+  scale_fill_manual(values = c("Rel606" = "#155289", "HS" = "#56B4E9", "536" = "pink3")) +  facet_wrap(~Recipient2, scales = "fixed") +  
+  theme(legend.position = "none", 
+        panel.border = element_rect(color = "black", fill = NA, size = 1), 
+        axis.text = element_text(margin = margin(t = 45),size = 11),  
+    axis.title = element_text(margin = margin(t = 45), size = 13),
+    strip.text = element_text(margin = margin(t = 25),size = 15, face = "bold")) +  
+  coord_fixed(ratio = 1)+
+  scale_y_continuous(limits = c(0, 8))
+dev.off()
+```
+
+------------------------------------------------------------------------
+
+[**Figure 5H**]{.underline}
+
+```{r}
+tiff("Figures/Figure5H.tiff", width = 4.5, height = 4.5, units = "in", res = 500)
+resultat <- recs 
+# resultat <- Recs %>%
+#   mutate(
+#     recombinant_num = as.numeric(str_extract(Strain, "\\d+"))
+#   )
+# resultat <- Recs %>%
+#   mutate(
+#     recombinant_num = as.numeric(str_extract(Strain, "\\d+")),
+#     recombinant_num = ifelse(str_detect(Strain, "^Conj"), recombinant_num + 28, recombinant_num)
+#   )
+resultat$recombinant <- ifelse(
+  grepl("^S\\d+", recs$Strain),
+  as.numeric(sub("S", "", recs$Strain)),
+  ifelse(
+    grepl("^Conj\\d+", recs$Strain),
+    as.numeric(sub("Conj", "", recs$Strain)) + 29,
+    ifelse(
+      grepl("^sample\\d+", recs$Strain, ignore.case = TRUE),
+      as.numeric(sub("^sample(\\d+).*", "\\1", recs$Strain, ignore.case = TRUE)),
+      NA
+    )
+  )
+)
+resultat <- resultat%>%
+  group_by(Strain, recipient, recombinant) %>%
+  summarise(Total_Longueur = sum(Length)) %>% ungroup()
+resultat$Total_Longueur <- as.numeric(resultat$Total_Longueur)
+
+
+df_mean <- resultat %>%
+  group_by(recipient) %>%
+  summarise(longueur_moyenne = mean(Total_Longueur, na.rm = TRUE))
+resultat <- resultat %>%
+  mutate(recipient = factor(recipient, levels = c("REL606", "HS", "536"))) %>%
+  arrange(recipient)
+#resultat$recombinant <- factor(resultat$recombinant, levels = c("REL606", "HS", "536"))
+ggplot(resultat, aes(x = log10(Total_Longueur), fill = recipient)) +
+  geom_histogram(position = "identity", alpha = 0.5, bins = 17, color = "black",linewidth = 0.2) +
+  labs(x = "Log10 (Total Length)", y = "Count") + 
+  theme_minimal() +
+  scale_fill_manual(
+    values = c("REL606" = "#155289", "HS" = "#56B4E9", "536" = "pink3"),
+    labels = c("REL606", "HS", "536"), 
+    name = "Recipient" 
+  ) +  facet_wrap(~recipient, scales = "fixed")+
+  theme(
+    legend.position = "none", 
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+    axis.text = element_text(margin = margin(t = 45),size = 11),  
+    axis.title = element_text(margin = margin(t = 45), size = 13),
+    strip.text = element_text(margin = margin(t = 25),size = 15, face = "bold"))+
+  coord_fixed(ratio = 1)  +
+  scale_x_continuous(limits = c(3, 6.1))+
+  scale_y_continuous(limits = c(0, 8))
+dev.off()
+```
+
+```{r}
+#code for side to side images 
+library(patchwork)
+p1 <- ggplot(Total_length, aes(x = log10(ALL_length2), fill = Recipient2)) +
+  geom_histogram(position = "identity", alpha = 0.5, bins = 17, color = "black", size = 0.2) + 
+  labs(x = "Log10 (Fragment Length)", y = "Count") + 
+  theme_minimal() + 
+  scale_fill_manual(values = c("Rel606" = "#155289", "HS" = "#56B4E9", "536" = "pink3")) +  
+  facet_wrap(~Recipient2, scales = "fixed") +  
+  theme(legend.position = "none", 
+        panel.border = element_rect(color = "black", fill = NA, size = 1), 
+        axis.text = element_text(margin = margin(t = 45), size = 11),  
+        axis.title = element_text(margin = margin(t = 45), size = 13),
+        strip.text = element_text(margin = margin(t = 25), size = 15, face = "bold")) +  
+  coord_fixed(ratio = 1)+
+  scale_y_continuous(limits = c(0, 8))
+
+pG <- ggplot(Combined_length_sorted, aes(x = RecipientF, y = log10(ALL_length), fill = RecipientF)) +
+  geom_boxplot(width = 0.5) +
+  geom_jitter(width = 0.1, shape = 21, alpha = 0.8, stroke = 1, col = "black") + 
+  labs(y = "Log10(Recombined Length)", x = "Recipient") + 
+  scale_fill_manual(values = couleurs_personnalisees) +
+  coord_flip() +  
+  theme_minimal() +  
+  theme(legend.position = "none")+
+  geom_rect(aes(xmin = 0.6, xmax = 2.40, ymin = 1.6, ymax = 6.1), 
+            color = "pink3", fill = NA, size = 1, linetype = "solid")+
+  geom_rect(aes(xmin = 2.55, xmax = 4.4, ymin = 1.6, ymax = 6.1), 
+            color = "lightblue", fill = NA, size = 1, linetype = "solid")+
+  geom_rect(aes(xmin = 4.55, xmax = 6.5, ymin = 1.6, ymax = 6.1), 
+            color = "darkblue", fill = NA, size = 1, linetype = "solid")+
+  geom_text(aes(x = 1.7, y = 2.5, label = "536"), 
+            color = "pink3", size = 4, family="Roboto", fontface = "bold") +
+  geom_text(aes(x = 3.7, y = 2.5, label = "HS"), 
+            color = "lightblue", size = 4, family="Roboto", fontface = "bold") +
+  geom_text(aes(x = 5.7, y = 2.65, label = "REL606"), 
+            color = "darkblue", size = 4, family="Roboto", fontface ="bold")+
+  stat_compare_means(
+    aes(group = RecipientF), 
+    method = "wilcox.test", 
+    comparisons = list(c("Rel606_onlyGal", "Rel606"), 
+                       c("HS_OnlyGal", "HS"), 
+                       c("536_OnlyGal", "536")),
+    label = "p.signif", 
+    hide.ns = FALSE, 
+    size = 2,
+    label.x = 1.5,      
+    label.y = 6.2,
+    tip.length = 0
+  ) +
+  stat_compare_means(
+    aes(group = RecipientF), 
+    method = "wilcox.test", 
+    comparisons = list(c("Rel606_onlyGal", "HS_OnlyGal")),
+    label = "p.signif", 
+    hide.ns = FALSE, 
+    size = 2,
+    label.x = 1.25,      
+    label.y = 1,
+    tip.length = 0
+  ) +
+  stat_compare_means(
+    aes(group = RecipientF), 
+    method = "wilcox.test", 
+    comparisons = list(c("536_OnlyGal", "Rel606_onlyGal")),
+    label = "p.signif", 
+    hide.ns = FALSE, 
+    size = 2,
+    label.x = 1.5,      
+    label.y = 0.75,
+    tip.length = 0
+  ) +
+  stat_compare_means(
+    aes(group = RecipientF), 
+    method = "wilcox.test", 
+    comparisons = list(c("536_OnlyGal", "HS_OnlyGal")),
+    label = "p.signif", 
+    hide.ns = FALSE, 
+    size = 2,
+    label.x = 1.25,      
+    label.y = 1.1,
+    tip.length = 0
+  ) +
+  theme(
+    axis.text.x = element_text(family= "Roboto", size = 8),  
+    axis.text.y = element_text(family= "Roboto", size = 8),  
+    axis.title.y = element_text(family= "Roboto", margin = margin(t = 10), size = 8), 
+    axis.title.x = element_text(family= "Roboto", margin = margin(t = 10), size = 8)
+  )
+
+p2 <- ggplot(resultat, aes(x = log10(Total_Longueur), fill = recipient)) +
+  geom_histogram(position = "identity", alpha = 0.5, bins = 17, color = "black", linewidth = 0.2) +
+  labs(x = "Log10 (Total Length)", y = "Count") + 
+  theme_minimal() +
+  scale_fill_manual(
+    values = c("REL606" = "#155289", "HS" = "#56B4E9", "536" = "pink3"),
+    labels = c("REL606", "HS", "536"), 
+    name = "Recipient" 
+  ) +  
+  facet_wrap(~recipient, scales = "fixed") +
+  theme(
+    legend.position = "none", 
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 1), 
+    axis.text = element_text(margin = margin(t = 45), size = 11),  
+    axis.title = element_text(margin = margin(t = 45), size = 13),
+    strip.text = element_text(margin = margin(t = 25), size = 15, face = "bold"))+
+  coord_fixed(ratio = 1)  +
+  scale_x_continuous(limits = c(3, 6.1))
+tiff("Figures/Figure5_FGH.tiff", width = 13.5, height = 3.5, units = "in", res = 600)
+(p1 | pG | p2) + plot_layout(widths = c(4.5, 6, 4.5)) 
+dev.off()
+```
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+[**Figure 6A-C: Pool analysis**]{.underline}
+
+```{r}
+galkpos_REL=769500
+genomeLength_REL=4629812
+galkpos_HS=816000
+genomeLength_HS=4643538
+galkpos_536=816000
+genomeLength_536=5500000
+
+
+recipient_colors <- c("#155289", "#56B4E9", "pink3")  
+i <- 1
+par(mfrow = c(2,2))
+j_vec = c(LETTERS[1:3])
+terpos = 1500000
+ratio = list()
+list_max_ratio = list()
+list_max = list()
+store = list()
+store3 = list() 
+genomeLength = 4629812
+#dev.new(width = 8, height = 6)  
+for (v in 1:length(j_vec)) {
+  j = j_vec[v]
+  print(v)
+  
+  Donor <- seq(0, 5000000, 1000) * 0
+  Recipient <- seq(0, 5000000, 1000) * 0
+  Donor <- Donor[-1]
+  Recipient <- Recipient[-1]
+  
+  # A= K12 x Rel B= K12 x HS and C = K12 x 536
+  name2 = paste("data/GalK/Pools/", j, "pool_K12.sam", sep="")
+  name1 = paste("data/GalK/Pools/", j, "pool_Rec.sam", sep="")
+  print(name2)
+  Tab <- read.table(name1)
+  Tab2 <- read.table(name2)
+  
+  a <- hist(Tab[Tab[, 2] >= 0, 1], breaks = seq(0, 5000000, 1000), plot = F)
+  b <- hist(Tab2[Tab2[, 2] >= 0, 2], breaks = seq(0, 5000000, 1000), plot = F)
+  Donor <- Donor + b$counts
+  Recipient <- Recipient + a$counts
+  
+  # Combine all reads according to the recipient position and attribute to who they matched, keeping only reads that matched both genomes but preferentially one
+  TabSorted1 <- as.data.frame(Tab[Tab[, 2] >= 0 & abs(Tab[, 1] - Tab[, 2]) < 500000, 1])
+  TabSorted1$source <- 0
+  # 0 means recipient match
+  dimnames(TabSorted1)[[2]][1] <- "position"
+  
+  TabSorted2 <- as.data.frame(Tab2[Tab2[, 2] >= 0 & abs(Tab2[, 1] - Tab2[, 2]) < 500000, 2])
+  TabSorted2$source <- 1
+  # 1 means donor match
+  dimnames(TabSorted2)[[2]][1] <- "position"
+  TabSortedCompiled <- rbind(TabSorted1, TabSorted2)
+  
+  # Combine the reads info of both tables, 0 is for reads that match the recipient, 1 for the ones that match the donor  
+  TabSortedCompiled <- TabSortedCompiled[order(TabSortedCompiled$position), ]
+  
+  combined <- cbind(as.data.frame(Donor), Recipient)
+  combined <- cbind(as.data.frame(combined), a$mids)
+  names(combined)[3] <- "xaxis"
+  
+  max = combined$xaxis[which.max(combined$Donor)]
+  list_max = append(list_max, max)  
+  
+  max_ratio = combined$xaxis[which.max(Donor / Recipient)]
+  list_max_ratio = append(list_max_ratio, max_ratio)
+  
+  ratio_list = log10(Donor / Recipient)
+  ratio[[j]] = ratio_list
+  
+  
+
+  if(j=="A"){
+     #tiff("Figure6A.tiff", width = 4.5, height = 4.5, units = "in", res = 500)
+    p <- ggplot(combined, aes(x = xaxis / 1e6, y = log10(Donor))) +
+      geom_vline(xintercept = 
+                   ifelse(v == 1, galkpos_REL / 1e6, 
+                          ifelse(v == 2, galkpos_HS / 1e6, galkpos_536 / 1e6)), 
+                 color = "red", linewidth = 1, linetype = "solid") +  
+      geom_point(aes(y = log10(Recipient)), fill = recipient_colors[1], color = "black", stroke = 0.05,
+                 shape = 21, size = 2) +  
+      geom_point(aes(y = log10(Donor)), fill = "#F4E6AA", shape = 21, size = 2, color = "black", stroke = 0.05) +  
+      labs(x = "Genome position (Mb)",
+           y = "Log10(coverage)",
+           title= "REL606") +
+      scale_y_continuous(limits = c(0, 3)) +
+      theme(
+        panel.background = element_rect(fill = "white"),  
+        panel.border = element_rect(colour = "black", fill = NA, size = 1),  
+        plot.background = element_rect(fill = "white"),  
+        axis.title = element_text(size = 14), 
+        axis.text = element_text(size = 12),  
+        plot.title = element_text(size = 20, hjust = 0.5, colour = "darkblue", face= "bold"),  
+        plot.subtitle = element_text(size = 14, hjust = 0.5))  
+    ggsave("Figures/Figure6A.tiff", 
+           plot = p,  
+           width = 4.5, 
+           height = 4.5, 
+           units = "in", 
+           dpi = 500,  
+           device = "tiff") 
+    
+    DR <- log10(Donor / Recipient)
+    store3 <- cbind(store3, DR[c((floor(genomeLength_REL / 1000) - (1500 - floor(galkpos_REL / 1000))):
+                                       (floor(genomeLength_REL / 1000)), 1:floor(galkpos_REL / 1000 + 1500))])
+  }
+  if(j=="B"){
+    p <- ggplot(combined, aes(x = xaxis / 1e6, y = log10(Donor))) +
+      geom_vline(xintercept = 
+                   ifelse(v == 1, galkpos_REL / 1e6, 
+                          ifelse(v == 2, galkpos_HS / 1e6, galkpos_536 / 1e6)), 
+                 color = "red", linewidth = 1, linetype = "solid") +  
+      geom_point(aes(y = log10(Recipient)), fill = recipient_colors[2], color = "black", stroke = 0.05,
+                 shape = 21, size = 2) +  
+      geom_point(aes(y = log10(Donor)), fill = "#F4E6AA", shape = 21, size = 2, color = "black", stroke = 0.05) +  
+      labs(x = "Genome position (Mb)", y = "Log10(coverage)", 
+           title= "HS") +
+      scale_y_continuous(limits = c(0, 3)) +
+      theme(
+        panel.background = element_rect(fill = "white"),  
+        panel.border = element_rect(colour = "black", fill = NA, size = 1),  
+        plot.background = element_rect(fill = "white"),  
+        axis.title = element_text(size = 14),  
+        axis.text = element_text(size = 12), 
+        plot.title = element_text(size = 20, hjust = 0.5, colour = "#80C4E9", face= "bold"),  
+        plot.subtitle = element_text(size = 14, hjust = 0.5)) 
+    
+    p <- ggsave("Figures/Figure6B.tiff", 
+           plot = p,  
+           width = 4.5, 
+           height = 4.5, 
+           units = "in", 
+           dpi = 500, 
+           device = "tiff") 
+    
+        DR <- log10(Donor / Recipient)
+    store3 <- cbind(store3, DR[c((floor(genomeLength_HS / 1000) - 
+                                        (1500 - floor(galkpos_HS / 1000))):
+                                       (floor(genomeLength_HS / 1000)), 
+                                     1:floor(galkpos_HS / 1000 + 1500))])}
+  if(j=="C"){
+    p<- ggplot(combined, aes(x = xaxis / 1e6, y = log10(Donor))) +
+      geom_vline(xintercept = 
+                   ifelse(v == 1, galkpos_REL / 1e6, 
+                          ifelse(v == 2, galkpos_HS / 1e6, galkpos_536 / 1e6)), 
+                 color = "red", linewidth = 1, linetype = "solid") +  
+      geom_point(aes(y = log10(Recipient)), fill = recipient_colors[3], color = "black", stroke = 0.05,
+                 shape = 21, size = 2) +  
+      geom_point(aes(y = log10(Donor)), fill = "#F4E6AA", shape = 21, size = 2, color = "black", stroke = 0.05) +  
+      labs(x = "Genome position (Mb)", y = "Log10(coverage)",
+           title= "536") +
+      scale_y_continuous(limits = c(0, 3)) +
+      theme(
+        panel.background = element_rect(fill = "white"),  # Fond blanc
+        panel.border = element_rect(colour = "black", fill = NA, size = 1), 
+        plot.background = element_rect(fill = "white"),
+        axis.title = element_text(size = 14),  
+        axis.text = element_text(size = 12), 
+        plot.title = element_text(size =20, hjust = 0.5, colour= "#D69ADE", face= "bold"), 
+        plot.subtitle = element_text(size = 14, hjust = 0.5))  
+    ggsave("Figures/Figure6C.tiff", 
+           plot = p, 
+           width = 4.5, 
+           height = 4.5, 
+           units = "in", 
+           dpi = 500,  
+           device = "tiff")  
+    DR <- log10(Donor / Recipient)
+    store3 <- cbind(store3, DR[c((floor(genomeLength_536 / 1000) - (1500 - floor(galkpos_536 / 1000))):
+                                       (floor(genomeLength_536 / 1000)), 1:floor(galkpos_536 / 1000 + 1500))])
+  }
+}
+
+```
+
+------------------------------------------------------------------------
+
+[**Figure 6.D.**]{.underline}
+
+```{r echo=TRUE, warning=FALSE, message=FALSE}
+### Position relative to galK 
+tiff("PhD/Figures/Figure6D.tiff", width = 4.5, height = 4.5, units = "in", res = 500)
+
+plot(NA,xlim=c(-1500000,1500000)/1000000,ylim=c(-3.5,3),ylab="Log10(Donor/Recipient)"
+           ,xlab=expression("Genome position relative to " * italic(galK)),cex.lab=1, 
+           cex.axis=1, cex.main=1, cex.sub=1.5)
+abline(v = 0, col = "red", lwd = 3)  
+points(seq(-1502000,1498000,1000)/1000000,store3[,1],pch=20,col="#155289",cex=0.5)
+points(seq(-1502000,1498000,1000)/1000000 ,store3[,2],pch=20,col="#56B4E9",cex=0.5)
+points(seq(-1502000,1498000,1000)/1000000,store3[,3],pch=20,col="pink3",cex=0.5)
+
+dev.off()
+```
+
+------------------------------------------------------------------------
+
+[**Figure 6.E**]{.underline}
+
+```{r echo=TRUE, warning=FALSE, message=FALSE}
+ratio <- as.data.frame(ratio)
+ratio <- cbind(ratio, combined$xaxis)
+names(ratio)[4] <- "xaxis"
+ratio$xaxis <- as.numeric(ratio$xaxis)
+ratio <- ratio[, -c(5:9)]
+
+
+a <- c(1, Inf, NA, NaN)
+ratio_dup <- as.data.frame(ratio)
+ratio_dup[ratio_dup == -Inf] <- 0
+ratio_dup[ratio_dup == Inf] <- 0
+tiff("Figures/Figure6E.tiff", width = 4.5, height = 4.5, units = "in", res = 500)
+print(plot(NA,xlim=c(0,5000000/1000000),ylim=c(-3.5,3),ylab="Log10(Donor/Recipient)"
+           ,xlab="Genome position (Mb)",cex.lab=1, 
+           cex.axis=1, cex.main=1, cex.sub=1.5))
+rect(1.2, -3.5, 2, 3, col = rgb(0.4, 0.6, 1, 0.3), border = NA)  # Rectangle light blue
+rect(3.7, -3.5, 4.5, 3, col = rgb(0.2, 0.8, 0.2, 0.3), border = NA)  # Rectangle green
+abline(v = galkpos_REL / 1000000, col = "red", lwd = 3)  
+points(ratio$xaxis/1000000, ratio$A,pch=20,col="#155289",cex=0.5)
+text(4.1, 3, "Ori", cex = 1, col = "darkgreen", font = 4)
+text(1.6, 3, "Ter", cex = 1, col = "darkblue", font = 4)
+dev.off()
+```
+
+------------------------------------------------------------------------
+
+[**Figure 6.F**]{.underline}
+
+```{r echo=TRUE, warning=FALSE, message=FALSE}
+
+i<-1
+k_vec = c(1:5)
+par(mfrow = c(2,2))
+j_vec = c(LETTERS[1:5],LETTERS[8:14])
+p_vec = c("", "pool")
+galkpos=769500
+terpos = 1500000
+ratio = list()
+list_max_ratio = list()
+list_max = list()
+store= list()
+sotre = list()
+genomeLength = 4629812
+
+for (v in 1:length(j_vec)) {
+  j = j_vec[v]
+  k=k_vec[v]
+  
+  Donor<-seq(0,5000000,1000)*0
+  Recipient<-seq(0,5000000,1000)*0
+  Donor<-Donor[-1]
+  Recipient<-Recipient[-1]
+  
+  # name2=paste("position/K12_", j, "1pool_pos.txt",sep="")
+  #  name1=paste("position/Rel606_", j,"1pool_pos.txt",sep="")
+  name2=paste("data/POOLS/", j, "1pool_K12.sam",sep="")
+  name1=paste("data/POOLS/", j, "1pool_Rel606.sam",sep="")
+  print(name2)
+  Tab<-read.table(name1)
+  Tab2<-read.table(name2)
+  
+  a<-hist(Tab[Tab[,2]>=0,1],breaks=seq(0,5000000,1000),plot=F)
+  b<-hist(Tab2[Tab2[,2]>=0,2],breaks=seq(0,5000000,1000),plot=F)
+  Donor<-Donor+b$counts
+  Recipient<-Recipient+a$counts
+  
+  #combine all reads according to the recipient position and attibute to who they matched, keeping only reads that matched both genomes but preferentially one
+  TabSorted1<-as.data.frame(Tab[Tab[,2]>=0 & abs(Tab[,1]-Tab[,2])<500000,1])
+  TabSorted1$source<-0
+  #0 means recipient match
+  dimnames(TabSorted1)[[2]][1]<-"position"
+  
+  TabSorted2<-as.data.frame(Tab2[Tab2[,2]>=0 & abs(Tab2[,1]-Tab2[,2])<500000,2])
+  TabSorted2$source<-1
+  #1 means donor match
+  dimnames(TabSorted2)[[2]][1]<-"position"
+  TabSortedCompiled<-rbind(TabSorted1,TabSorted2)
+  
+  #combine the reads info of both table 0 is for reads that match the recipient, 1 for the ones that match the donor  
+  TabSortedCompiled<-TabSortedCompiled[order(TabSortedCompiled$position),]
+  
+  
+  
+  combined = cbind(as.data.frame(Donor), Recipient)
+  combined = cbind(as.data.frame(combined), a$mids)
+  names(combined)[3] <- "xaxis"
+  max = combined$xaxis[which.max(combined$Donor)]
+  list_max = append(list_max, max)  
+  
+  max_ratio=combined$xaxis[which.max(Donor/Recipient)]
+  list_max_ratio = append(list_max_ratio, max_ratio)
+  
+  
+  # 
+  # print(ggplot(combined, aes(x=xaxis/1e6, y=log10(Donor)))+
+  #         geom_point(aes(y = log10(Recipient)), col = "#155289")+
+  #         geom_point(aes(y = log10(Donor)), col = "#F4E6AA")+
+  #         labs(title = paste("Recombinant", j, "pool"),
+  #              subtitle = paste("insertion at:", max), x = "genome (Mb)") +
+  #         geom_vline(xintercept = max/1e6))
+  
+  # maximim<-2
+  # 
+  # a <- plot(a$mids/1e6,log10(Recipient),pch=20,cex=1,main=paste("Recombinant",j), 
+  #      xlab="genome position (Mb)",ylab="log10(coverage)",ylim=c(0,min(3.5,max(log10(Recipient),log10(Donor)))),
+  #      col="blue",cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+  # points(b$mids/1e6,log10(Donor),pch=20,col= "#F4E6AA",cex=1)
+  # lines(TabSortedCompiled$position/1e6,TabSortedCompiled$Donor*maximim,col="red",lwd=1)
+  # abline(v=max/1e6,lwd=1,col="yellow")
+  # 
+  
+  
+  list = log10(Donor/Recipient)
+  ratio[[j]] = list
+  
+  DR<-log10(Donor/Recipient)
+  store<-cbind(store,DR[c((floor(genomeLength/1000)-(1500-floor(terpos/1000))):
+                            (floor(genomeLength/1000)),1:floor(terpos/1000+1500))])
+  DR<-log10(Donor/Recipient)
+  store3<-cbind(store,DR[c((floor(genomeLength/1000)-(1500-floor(galkpos/1000))):
+                            (floor(genomeLength/1000)),1:floor(galkpos/1000+1500))])
+
+}
+
+dev.off()
+
+
+ratio = as.data.frame(ratio)
+ratio = cbind(ratio, combined$xaxis)
+names(ratio)[13] <- "xaxis"
+a <- c(1, Inf, NA, NaN)
+ratio_dup <- as.data.frame(ratio)
+ratio_dup[ratio_dup == -Inf] <- 0
+ratio_dup[ratio_dup == Inf] <- 0
+
+tiff("Figures/Figure6F.tiff", width = 4.5, height = 4.5, units = "in", res = 500)
+print(plot(NA,xlim=c(0,5000000/1000000),ylim=c(-3,3),ylab="Log10(Donor/Recipient)"
+           ,xlab="Genome position (Mb)",cex.lab=1, 
+           cex.axis=1, cex.main=1, cex.sub=1.5))
+rect(1.2, -3.5, 2, 3, col = rgb(0.4, 0.6, 1, 0.3), border = NA)  
+rect(3.7, -3.5, 4.5, 3, col = rgb(0.2, 0.8, 0.2, 0.3), border = NA) 
+abline(v = galkpos_REL / 1000000, col = "red", lwd=3)
+points(ratio$xaxis/1000000, ratio$K,pch=20,col="darkblue",cex=0.5)
+points(ratio$xaxis/1000000, ratio$I,pch=20,col="#56B4E9",cex=0.5)
+points(ratio$xaxis/1000000, ratio$H,pch=20,col="lightblue",cex=0.5)
+points(ratio$xaxis/1000000, ratio$J,pch=20,col="purple3",cex=0.5)
+text(4.1, 3, "Ori", cex = 1, col = "darkgreen", font = 4)
+text(1.6, 3, "Ter", cex = 1, col = "darkblue", font = 4)
+dev.off()
+
+```
+
+------------------------------------------------------------------------
+
+[**Figure 7**]{.underline}
+
+```{r echo=TRUE, warning=FALSE, message=FALSE}
+tiff("Figures/Figure7.tiff", width = 4.5, height = 4.5, units = "in", res = 500)
+par(mar =c(5, 4, 4, 6), pty = "s")
+print(plot(NA,xlim=c(0,5000000/1000000),ylim=c(-3.5,3),ylab="Log10(Donor/Recipient)"
+           ,xlab="Genome position (Mb)",cex.lab=1, 
+           cex.axis=1, cex.main=1, cex.sub=1.5))
+abline(v = which.min(ratio_dup$N)/1000, col = "black", lwd = 1, lty = 2)  
+points(ratio$xaxis/1000000, ratio$L,pch=20,col="brown",cex=0.5)
+points(ratio$xaxis/1000000, ratio$M,pch=20,col="gold3",cex=0.5)
+points(ratio$xaxis/1000000, ratio$N,pch=20,col="darkgreen",cex=0.5)
+abline(v = ratio_dup$xaxis[which.max(ratio_dup$L)]/1000000, col = "darkred")
+abline(v = ratio_dup$xaxis[which.max(ratio_dup$M)]/1000000, col = "gold3")
+abline(v = ratio_dup$xaxis[which.max(ratio_dup$N)]/1000000, col = "darkgreen")
+dev.off()
+```
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+## [Supplementary Figures]{.underline}
+
+[**Figure S1**]{.underline}
+
+```{r}
+#F3B <- read_excel("Fig1a3_paper/F3B.xlsx")
+FS1 <- read.csv("guidesystem.csv", sep =";")
+FS1$CFUdonnor <- log10(as.numeric(FS1$CONJUGATION.EFFICIENCY..CFU.mL.))
+FS1 <- na.omit(FS1)
+FS1 <- FS1[FS1$PLASMID == "pSIM5cas9",] 
+FS1 <- FS1[FS1$INDUCTION == "oui",] 
+FS1$PLASMID <- factor(FS1$PLASMID, levels = c("control", "pSIM5cas9"))
+
+tiff("Figures/Suppplement1.tiff", width = 4.5, height = 4.5, units = "in", res = 600)
+ggplot(FS1, aes(x = GENOTYPE, y = CFUdonnor, fill = GUIDE)) + 
+  labs(y = "Log10(CFU Hfr/pNTM3 donor)", x="Genotype") +
+  geom_boxplot(aes(fill = GUIDE), color = "black", linewidth = 0.5, position = position_dodge(width = 0.8)) + 
+  geom_point(aes(fill = GUIDE),  
+             position = position_dodge(width = 0.8),  
+             shape = 21, alpha = 0.6, stroke = 1, color = "black") +
+  scale_fill_manual(values = c("no" = "darkgrey", "yes" = "orange"))+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  theme_bw() +  
+  theme(
+    axis.ticks.x = element_line(color = "black", size = 0.5),
+    legend.position = "none"
+  ) +
+  geom_vline(xintercept = seq(0.5, length(unique(FS1$GENOTYPE)) - 0.5, by = 1), 
+             color = "black", size = 0.3, linetype = "solid")+
+    scale_x_discrete(labels = c("ybjm" = expression(italic("ybjm")),
+                              "autre_genotype" = "autre_genotype"))
+
+```
+
+[**Figure S2B-C**]{.underline}
+
+The data have been processed with 1) BWA then 2) with .perl file to
+obtain the final .sam
+
+```{r echo=TRUE, warning=FALSE, message=FALSE}
+tab<-read.table("data/Tnseq/data_paper/K12_TnPos.sam")
+#filter ther reads 
+restricted<-tab[tab$V5>(-15)&tab$V5<(-8), ]
+dimnames(restricted)[[2]]=c("read","UMI","pos","strand","offset")
+resun<-unique(restricted[c("UMI","pos"),])
+
+
+
+restricted$dup <- duplicated(restricted[c("UMI", "pos") ])
+dedourrestricted<- subset(restricted, dup == FALSE)
+
+counts <-hist(dedourrestricted$pos,breaks=seq(0,4639675+250000,250000))
+counts1 <-hist(unique(dedourrestricted$pos),breaks=seq(0,4639675+250000,250000),plot=FALSE)
+boby0=mean(counts$counts[6:7])
+boby1=mean(counts1$counts[6:7])
+```
+
+```{r}
+# Premier graphique : log2 fold increase coverage
+tiff("PhD/Figures/Supplementary_FiguresTn1.tiff", width = 4.5, height = 4.5, units = "in", res = 500) 
+plot(counts$mids / 1000000, log2(counts$counts / boby0), xlab = "Genome Position (Mb)", pch = 20, col = "blue", 
+     ylim = c(-1, 5), cex = 2, ylab = "log2 fold increase compared to terminus")
+points(counts1$mids / 1000000, log2(counts1$counts / boby1), pch = 20, col = "red")
+abline(h = 0, lty = "dotted")
+dev.off()
+```
+
+```{r}
+# Deuxième graphique : graphique de régression entre les deux log2 fold increases
+tiff("PhD/Figures/Supplementary_FiguresTn2.tiff", width = 4.5, height = 4.5, units = "in", res = 500) 
+plot(log2(counts1$counts / boby1), log2(counts$counts / boby0), xlab = "relative log2 fold increase\n in unique pos", 
+     ylab = "relative log2 fold increase in library insertions", pch = 20, cex = 2, col = "violet")
+a <- lm(log2(counts$counts / boby0) ~ log2(counts1$counts / boby1))
+abline(a = a$coefficients[1], b = a$coefficients[2], lty = "dotted", col = "violet")
+dev.off()
+```
+
+[**Figure S4: methode HMM versus changepoint for recombinant clone
+analysis**]{.underline}
+
+```{r}
+library(HMM)
+extrafigures=0
+FragmentPosions<-data.frame(recombinant=c(0),rec=c(0),begin=c(0),end=c(0),nb1=c(0),nbpos1=c(0))
+i<-1
+k_vec = c(1:6, 8, 8, 9, 11:20)
+u_vec = c(1:20)
+z_vec = c(20:28)
+j_vec = c(9:15, 17, 18, 19:28, 29:56)
+w_vec = c(1:8)
+S_vec <- c(25, 26, 18, 27, 19, 20, 21, 22)
+for (v in 1:length(j_vec)) {
+  j = j_vec[v]
+  k=k_vec[v]
+  u=u_vec[v]
+  if (v >= 40) {
+    w = v - 39 
+    z = z_vec[w]
+    S = S_vec[w]
+  } else {
+    w = 1 
+  }
+  
+  #REL606 recipient
+  galkpos=769500
+  Donor<-seq(0,5000000,1000)*0
+  Recipient<-seq(0,5000000,1000)*0
+  #HS Recipient
+  if(j > 28){
+    galkpos = 816000
+    Donor<-seq(0,5000000,1000)*0
+    Recipient<-seq(0,5000000,1000)*0
+  }
+  #536 recipient
+  if (j>48){
+    galkpos = 803500
+    Donor<-seq(0,5500000,1000)*0
+    Recipient<-seq(0,5500000,1000)*0
+  }
+  
+  Donor<-Donor[-1]
+  Recipient<-Recipient[-1]
+  
+  if (j<29){
+    name2=paste("Analysis/Paper_ComGenEpi/Clone/position_26june/K12_sample",j, "relgal", k,"_R1_pos.txt",sep="")
+    print(name2)
+    name1=paste("Analysis/Paper_ComGenEpi/Clone/position_26june/Rel606_sample",j, "relgal", k,"_R1_pos.txt",sep="")
+    }
+  else{
+    if (j<49){
+      if (v > 19){
+        k=u_vec[v-19]
+        u=u_vec[v-19]
+      }
+      name2=paste("Analysis/Paper_ComGenEpi/Clone/position_26june/K12_sample",j, "HSgal", u,"_R1_pos.txt",sep="")
+      name1=paste("Analysis/Paper_ComGenEpi/Clone/position_26june/HS_sample", j, "HSgal", u,"_R1_pos.txt",sep="")
+      print(name1)
+      }
+    else{
+      name2=paste("PaperConj2025_files/536_HMM/parsing/", "K12_Conj-",z, "_S", S,"_L001_R1_001_pos.txt",sep="")
+      name1=paste("PaperConj2025_files/536_HMM/parsing/", "536_Conj-",z,"_S", S,"_L001_R1_001_pos.txt",sep="")
+      print(name1)
+    }}
+  Tab<-read.table(name1)
+  Tab2<-read.table(name2)
+  
+  #exclude problematic regions
+  Tab2<-Tab2[Tab2[,2]<3947000 | Tab2[,2]>=3949000,]
+  Tab2<-Tab2[Tab2[,2]<3481000| Tab2[,2]>=3482000,]
+  Tab<-Tab[Tab[,1]<3947000 | Tab[,1]>=3949000,]
+  Tab<-Tab[Tab[,1]<3481000| Tab[,1]>=3482000,]
+  
+  if (j>48)
+  {
+    Tab<-Tab[Tab[,1]<=804500 |Tab[,1]>=805000 ,]
+    Tab2<-Tab2[Tab2[,2]<=804500 | Tab2[,2]>=805000,]
+  }
+  #filter the  weird positions: 3947406 and  3481583
+  if (j>28 & j<49) 
+  {
+    Tab<-Tab[Tab[,1]<4012000 | Tab[,1]>=4014000,]
+    Tab2<-Tab2[Tab2[,2]<4012000| Tab2[,2]>=4014000,]
+    Tab<-Tab[Tab[,1]<2315000 | Tab[,1]>=2318000,]
+    Tab2<-Tab2[Tab2[,2]<2315000| Tab2[,2]>=2318000,]
+  }
+  
+  # Bin data for figures with error handling for histograms
+  a <- hist(Tab[Tab[, 2] >= 1e-1 & Tab[, 2] <= 5e+06, 1], breaks = seq(0, 5000000, 1000), plot = F)
+  b <- hist(Tab2[Tab2[, 2] >= 2e-1 & Tab2[, 2] <= 5e+06, 2], breaks = seq(0, 5000000, 1000), plot = F)
+  
+  # Ajuster les breaks pour couvrir toute la plage des données
+  breaks = seq(min(Tab2[, 2]), max(Tab2[, 2]), by = 1000)
+  
+  Donor <- Donor + b$counts
+  Recipient <- Recipient + a$counts
+  
+  # Combine all reads according to the recipient position and attribute to who they matched, keeping only reads that matched both genomes but preferentially one
+  TabSorted1 <- as.data.frame(Tab[Tab[, 2] >= 0 & abs(Tab[, 1] - Tab[, 2]) < 500000, 1]) #cette ligne PROBLEMOOOOOO
+  if (nrow(TabSorted1) == 0) {
+    print("TabSorted1 est vide, passage à la prochaine itération")
+    next  # Passer à l'itération suivante de la boucle
+  }
+  TabSorted1$source <- 0 # 0 means recipient match
+  dimnames(TabSorted1)[[2]][1] <- "position"
+  
+  TabSorted2 <- as.data.frame(Tab2[Tab2[, 2] >= 0 & abs(Tab2[, 1] - Tab2[, 2]) < 500000, 2])
+  TabSorted2$source <- 1   # 1 means donor match
+  dimnames(TabSorted2)[[2]][1] <- "position"
+  
+  # Combine the sorted data from both tables
+  TabSortedCompiled <- rbind(TabSorted1, TabSorted2)
+  
+  # Sorting the combined table by position
+  TabSortedCompiled <- TabSortedCompiled[order(TabSortedCompiled$position),]
+  
+  
+  if (j<49) {      
+    hmm=initHMM(c("MG","REL","Mix"),c(0,1),startProbs=c(0.1,0.9,0.1),transProbs=matrix(c(0.9999999,0.0000001,0.0000001,0.0000001,0.9999999,0.0000001,0.0000001,0.0000001,0.9999999),3),emissionProbs=matrix(c(0.1,0.9,0.5,0.9,0.1,0.5),3))
+  }else
+  {
+    #  hmm=initHMM(c("MG","REL"),c(0,1),startProbs=c(0.1,0.9),transProbs=matrix(c(0.9999999,0.0000001,0.0000001,0.9999999),2),emissionProbs=matrix(c(0.1,0.9,0.9,0.1),2))
+    hmm=initHMM(c("MG","REL","Mix"),c(0,1),startProbs=c(0.1,0.9,0.1),transProbs=matrix(c(0.9999999,0.000000001,0.000000001,0.000000001,0.999999999,0.000000001,0.000000001,0.000000001,0.999999999),3),emissionProbs=matrix(c(0.1,0.9,0.5,0.9,0.1,0.5),3))
+  }
+  
+    #posterior=posterior(hmm,as.factor(TabSorted$source))
+  viterbihmm=viterbi(hmm,as.factor(TabSortedCompiled$source))
+  TabSortedCompiled$State<-viterbihmm
+  TabSortedCompiled$Donor<-as.numeric(TabSortedCompiled$State!="REL")
+  
+  #plot figure with fit
+  #print("figure")
+  TabSortedCompiled$cumsum<-cumsum(as.numeric(TabSortedCompiled$source*2-1))
+  if (j == 18) {
+  TableRecombinant18 <- TabSortedCompiled  # Sauvegarde du tableau pour j = 17
+}
+  # 
+  #   if (v == 1) {
+  #     tiff("PhD/Figures/Figure5B.tiff", width = 4.5, height = 4.5, units = "in", 
+  #          res = 500)
+  #     plot(a$mids/1e6,log10(Recipient),pch=20,cex=1,
+  #          xlab="Genome position (Mb)",
+  #          ylab="log10(coverage)",ylim=c(0,max(log10(Recipient),log10(Donor))),
+  #            col="#155289",cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+  #       abline(v=galkpos/1e6,col="red", lwd=3)
+  #     # plot(a$mids/1e6,log10(Recipient),pch=20,cex=1,main=paste("Recombinant",j),
+  #     #      xlab="Genome osition (Mb)",
+  #     #      ylab="log10(coverage)",ylim=c(0,max(log10(Recipient),log10(Donor))),
+  #     #        col="#155289",cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+  # points(b$mids/1e6,log10(Donor),pch=20,cex=1,col= "#F4E6AA")
+  # maximim<-max(log10(Donor),log10(Recipient))
+  # lines(TabSortedCompiled$position/1e6,TabSortedCompiled$Donor*maximim,col="red",lwd=2)
+  # dev.off()}
+  # 
+  #     if (v == 32) {
+  #     tiff("PhD/Figures/Figure5B_40.tiff", width = 4.5, height = 4.5, units = "in", 
+  #          res = 500)
+  #     plot(a$mids/1e6,log10(Recipient),pch=20,cex=1,
+  #          xlab="Genome position (Mb)",
+  #          ylab="log10(coverage)",ylim=c(0,max(log10(Recipient),log10(Donor))),
+  #            col="#155289",cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+  #       abline(v=galkpos/1e6,col="red", lwd=3)
+  #     # plot(a$mids/1e6,log10(Recipient),pch=20,cex=1,main=paste("Recombinant",j),
+  #     #      xlab="Genome osition (Mb)",
+  #     #      ylab="log10(coverage)",ylim=c(0,max(log10(Recipient),log10(Donor))),
+  #     #        col="#155289",cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+  # points(b$mids/1e6,log10(Donor),pch=20,cex=1,col= "#F4E6AA")
+  # maximim<-max(log10(Donor),log10(Recipient))
+  # lines(TabSortedCompiled$position/1e6,TabSortedCompiled$Donor*maximim,col="red",lwd=2)
+  # dev.off()
+  # }
+  # 
+  #   if(extrafigures==1)
+  # {
+  #   #plot zoom  with fit FOR REL606 and HS 
+  #   plot(a$mids/1e6,log10(Recipient),pch=20,cex=1,main=paste("Recombinant",j),xlab="genome position (Mb)",ylab="log10(coverage)",ylim=c(0,2),col="#155289",cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5,xlim=c(0.7,1))
+  #   # points(b$mids,log10(Donor),pch=20,cex=1,col="blue")
+  #   points(b$mids/1e6,log10(Donor),pch=20,cex=1,col= "#F4E6AA")
+  #   maximim<-2
+  #   lines(TabSortedCompiled$position/1e6,TabSortedCompiled$Donor*maximim,col="red",lwd=1)
+  #   abline(v=galkpos/1e6,lwd=1,col="yellow")
+  # }
+  # 
+  #find the length of segments
+  #print("find length")
+  Tabtmp<-TabSortedCompiled
+  index=which(Tabtmp$Donor==1)
+  rec0=1
+  
+  while(length(index)>0)
+  {#print(index[1])
+    if(index[1] != 1){
+      begin_1 = Tabtmp$position[index[1]]
+      begin_0 = Tabtmp$position[index[1] - 1]
+    }
+    else{
+      begin_1 = 0
+      begin_0 = 0
+    }
+    Tabtmp<-Tabtmp[c(index[1]:nrow(Tabtmp)),]
+    index=which(Tabtmp$Donor==0)
+    if (length(index)>0)
+    {end_0=Tabtmp$position[index[1]]
+    end_1=Tabtmp$position[index[1]-1]}
+    else {
+      end_1=4639675
+      end_0=4639675}
+    FragmentPosions[i,"recombinant"]=j
+    
+    
+    FragmentPosions[i,"rec"]=rec0
+    FragmentPosions[i,"begin_1"]=begin_1
+    FragmentPosions[i,"begin_0"]=begin_0
+    FragmentPosions[i,"end_1"]=end_1
+    FragmentPosions[i,"end_0"]=end_0
+    ones<-TabSortedCompiled[TabSortedCompiled$position>=begin_1 & TabSortedCompiled$position<end_0,]
+    FragmentPosions[i,"nb1"]=sum(ones$source)
+    pos<-unique(ones[ones$source==1,]$position)
+    #FragmentPosions[i,"nbpos1"]=length(unique(ones[ones$source==1,]$position))
+    FragmentPosions[i,"nbpos1"]=length(pos)
+    FragmentPosions[i,"length"]=max(pos)-min(pos)
+    i<-i+1
+    rec0<-rec0+1
+    
+    if (length(index)==0){break}
+    Tabtmp<-Tabtmp[c(index[1]:nrow(Tabtmp)),]
+    index=which(Tabtmp$Donor==1)
+  }
+}
+
+#dev.off()
+Table_pos <- FragmentPosiions
+write.csv(Table_pos, file = "Positions_Fragments0908.csv", row.names = FALSE)
+
+```
+
+```{r}
+library(IRanges)
+library(dplyr)
+library(tidyr)
+FragmentPosions <- read.csv("Positions_Fragments0908",header=TRUE, sep=",") #if FragmentPosions wasn't loaded before 
+Recs <- read.csv("Positions_Fragments2606_CP",header=TRUE, sep=",") #if Recs wasn't loaded before 
+
+Recs$recombinant <- ifelse(
+  grepl("^S\\d+", Recs$Strain),
+  as.numeric(sub("S", "", Recs$Strain)),
+  ifelse(
+    grepl("^Conj\\d+", Recs$Strain),
+    as.numeric(sub("Conj", "", Recs$Strain)) + 29,
+    NA
+  )
+)
+FragmentPosions$Start <-FragmentPosions$begin_1
+FragmentPosions$End <-FragmentPosions$end_1
+df1 <- FragmentPosions %>%
+  select(recombinant, Start, End) %>%
+  mutate(Méthode = "HMM")
+df1 <- df1 %>%
+  mutate(
+    recombinant_aligned = case_when(
+      recombinant >= 17 & recombinant <= 48 ~ recombinant - 1,
+      TRUE ~ recombinant
+    )
+  )
+
+df2 <- Recs %>%
+  select(recombinant, Start, End) %>%
+  mutate(Méthode = "Changepoint")
+df2 <- df2 %>%
+  mutate(
+    recombinant_aligned = recombinant
+  )
+
+all_recombinants <- union(df1$recombinant_aligned, df2$recombinant_aligned)
+df1_complete <- df1 %>%
+  complete(recombinant = all_recombinants, fill = list(Start = 0, End = 0, Méthode = "HMM"))
+df2_complete <- df2 %>%
+  complete(recombinant = all_recombinants, fill = list(Start = 0, End = 0, Méthode = "Changepoint"))
+
+all_fragments <- bind_rows(df1_complete, df2_complete) %>%
+  mutate(
+    recombinant_num = as.numeric(as.character(recombinant_aligned)),
+    y_pos = recombinant_num + ifelse(Méthode == "HMM", 0.2, -0.2)
+  )
+
+#Function for ploting the recombined fragments for each recombinant by method
+plot_recombinant_range <- function(data, range_label, min_val, max_val = Inf, source) {
+  if (source == "REL606") {
+    galkpos <- 769500
+    genomeLength <- 4629812
+    color <- "#155289"
+  } else if (source == "HS") {
+    galkpos <- 816000
+    genomeLength <- 4643538
+    color <- "#56B4E9"
+  } else if (source == "536") {
+    galkpos <- 816000
+    genomeLength <- 5500000
+    color <- "pink3"
+  } else {
+    stop("Source inconnue : choisir parmi 'REL606', 'HS', '536'")
+  }
+  
+  subset_df <- data %>%
+    filter(recombinant_num >= min_val & recombinant_num < max_val)
+  ggplot(subset_df) +
+    geom_segment(aes(x = Start, xend = End, y = y_pos, yend = y_pos, color = Méthode), size = 3) +
+    # geom_point(aes(x = Start, y = y_pos), shape = 21, fill = "white", size = 2, color = "black") +
+    # geom_point(aes(x = End, y = y_pos), shape = 21, fill = "white", size = 2, color = "black") +
+    geom_vline(xintercept = galkpos, color = color, size = 0.75) +
+    scale_y_continuous(
+      breaks = unique(subset_df$recombinant_num),
+      labels = paste0("Rec_", unique(subset_df$recombinant_num))
+    ) +
+    theme_minimal(base_size = 12) +
+    labs(
+      x = "Genome position (bp)", y = "Recombinant", color = "Méthode"
+    ) +
+    theme(
+      panel.grid.major.y = element_blank(),
+      axis.text.y = element_text(size = 7)
+    )
+}
+plot1 <- plot_recombinant_range(all_fragments, "REL606", 9, 28, "REL606")
+plot2 <- plot_recombinant_range(all_fragments, "HS", 28, 47, "HS")
+plot3 <- plot_recombinant_range(all_fragments, "536", 48, Inf, "536")
+library(patchwork)
+tiff("Figures/FigSupp_HMMCP1.tiff", width =12, height = 8, units = "in", res = 600)
+(plot1 | plot2 | plot3) + plot_layout(guides = "collect") & theme(legend.position = "bottom")
+dev.off()
+######## Code to find non overlapping regions  
+get_unique_regions <- function(df1, df2) {
+  unique_rows <- list()
+  
+  for (rec in unique(df1$recombinant_aligned)) {
+    hmm <- df1 %>% filter(recombinant_aligned == rec)
+    cp  <- df2 %>% filter(recombinant_aligned == rec)
+    
+    ir_hmm <- IRanges(start = hmm$Start, end = hmm$End)
+    ir_cp  <- IRanges(start = cp$Start, end = cp$End)
+    
+    # Fragments HMM not overlapping with CP
+    non_overlap_hmm <- setdiff(seq_along(ir_hmm), queryHits(findOverlaps(ir_hmm, ir_cp)))
+    unique_rows[[length(unique_rows) + 1]] <- hmm[non_overlap_hmm, ]
+    
+    # Fragments CP not overlapping with HMM
+    non_overlap_cp <- setdiff(seq_along(ir_cp), queryHits(findOverlaps(ir_cp, ir_hmm)))
+    unique_rows[[length(unique_rows) + 1]] <- cp[non_overlap_cp, ]
+  }
+  
+  bind_rows(unique_rows)
+}
+unique_fragments <- get_unique_regions(df1_complete, df2_complete)
+unique_fragments <- unique_fragments %>%
+  mutate(
+    recombinant_num = as.numeric(recombinant_aligned),
+    y_pos = recombinant_num + ifelse(Méthode == "HMM", 0.2, -0.2)
+  )
+plot1_unique <- plot_recombinant_range(unique_fragments, "REL606", 9, 28, "REL606")
+plot2_unique <- plot_recombinant_range(unique_fragments, "HS", 28, 47, "HS")
+plot3_unique <- plot_recombinant_range(unique_fragments, "536", 48, 57, "536")
+tiff("Figures/FigSupp_HMMCP2.tiff", width =12, height = 8, units = "in", res = 600)
+(plot1_unique | plot2_unique | plot3_unique) + plot_layout(guides = "collect") & theme(legend.position = "bottom")
+dev.off()
+```
+
+[**Figure S5**]{.underline}
+
+```{r}
+#coverage_table <- read_csv("downscaling/coverage_table.csv")
+#coverage_table175 <- read_csv("downscaling/coverage_table175.csv")
+#coverage_tableRELHS <- read_csv("downscaling/coverage_tableRELHS.csv")
+coverage_table <- read_csv("downscaling/coverage_clones536.csv")
+coverage_table175 <- read_csv("downscaling/coverage_clones536.csv")
+coverage_tableRELHS <- read_csv("downscaling/coverage_clonesRELHS.csv")
+
+RecombinedStats175 <- read.table("downscaling/bases175/RecombinedFragmentsStatsTotal.txt", sep = "")
+RecombinedStats <- read.table("downscaling/bases/RecombinedFragmentsStatsTotal.txt", sep = "")
+RecombinedStatsREL <- read.table("downscaling/bases/RecombinedFragmentsStatsTotalREL.txt", sep = "")
+RecombinedStatsHS <- read.table("downscaling/bases/RecombinedFragmentsStatsTotalHS.txt", sep = "")
+
+RecombinedStatsHS$ConjGroup<- RecombinedStatsHS$Strain
+RecombinedStatsREL$ConjGroup<-RecombinedStatsREL$Strain
+RecombinedStatsREL$recipient<-"REL606"
+RecombinedStatsHS$recipient<-"HS"
+RecombinedStats$recipient<-"536"
+RecombinedStats175$recipient<-"536"
+RecombinedStatsHS$Res<-"1x"
+RecombinedStatsREL$Res<-"1x"
+
+RecombinedStatsREL$ConjGroup<-RecombinedStatsREL$Strain
+
+RecombinedStats <- RecombinedStats %>%
+  mutate(ConjGroup = str_extract(Strain, "Conj.\\d+"))
+RecombinedStats <- RecombinedStats %>%
+  mutate(Res = str_extract(Strain, "\\d+(\\.\\d+)?x"))
+
+RecombinedStats175 <- RecombinedStats175 %>%
+  mutate(ConjGroup = str_extract(Strain, "Conj.\\d+"))
+RecombinedStats175 <- RecombinedStats175 %>%
+  mutate(Res = str_extract(Strain, "\\d+(\\.\\d+)?x"))
+
+coverage_table <- coverage_table %>%
+  mutate(ConjGroup = gsub("-", ".", Strain),   # rename Conj-20 in Conj.20
+         Res = paste0(Fraction, "x"))
+coverage_table175 <- coverage_table175 %>%
+  mutate(Fraction = 0.175)
+coverage_table175 <- coverage_table175 %>%
+  mutate(ConjGroup = gsub("-", ".", Strain),   # rename Conj-20 in Conj.20
+         Res = paste0(Fraction, "x"))
+  
+coverage_RELHS_fixed <- coverage_tableRELHS %>%
+  mutate(Fraction = 1)
+coverage_RELHS_fixed <- coverage_RELHS_fixed %>%
+  mutate(ConjGroup = Strain,
+         Res = paste0(Fraction, "x"))
+coverage_table_s <- coverage_table %>%
+  select(Strain, Fraction, Coverage_estimated, ConjGroup)
+coverage_table_175 <- coverage_table175 %>%
+  select(Strain, Fraction, Coverage_estimated, ConjGroup)
+coverage_RELHS_fixed <- coverage_RELHS_fixed %>%
+  select(Strain, Fraction, Coverage_estimated, ConjGroup)
+coverage_RELHS_fixed <- coverage_RELHS_fixed %>%
+  mutate(ConjGroup = paste0("S", sub("^sample(\\d+).*", "\\1", Strain)))
+
+RecombinedStatsTotal536_combined <- bind_rows(RecombinedStats, RecombinedStats175)
+
+coverage_combined <- bind_rows(coverage_table_s, coverage_table_175, coverage_RELHS_fixed)
+RecombinedStatsTotal_combined <- bind_rows(RecombinedStats, RecombinedStats175,RecombinedStatsHS, RecombinedStatsREL)
+
+coverage_combined$Res <- paste0(coverage_combined$Fraction,"x")
+
+
+RecombinedStats_merged <- RecombinedStatsTotal_combined %>%
+  left_join(coverage_combined %>%
+              select(ConjGroup, Res, Coverage_estimated),
+            by = c("ConjGroup", "Res"))
+
+ggplot(RecombinedStats, aes(x = Res, y = Length)) +
+  geom_violin(trim = FALSE, fill = "skyblue", alpha = 0.6) +
+  geom_boxplot(width = 0.1, outlier.shape = NA, alpha = 0.5) +
+  theme_minimal() +
+  labs(x = "Conjugation group", y = "Length", 
+       title = "Variability of fragment length in different coverage groups")
+
+RecombinedStats_count <- RecombinedStats_merged %>%
+  count(Res, ConjGroup, Coverage_estimated ) 
+tiff("Figure/Lengthbycoverage.tiff", width = 6000, height = 3500, res = 600)
+ggplot(RecombinedStats_merged, aes(x = Res, y = Length, color = Coverage_estimated)) +
+  geom_boxplot(width = 0.2,alpha = 0.8) + 
+  facet_wrap(~ ConjGroup, scales = "free_y") +
+  scale_color_viridis_c(option = "C") +  
+  theme_minimal() +
+  labs(x = "Resolution",
+       y = "Fragment length",
+       color = "Calculated coverage")
+dev.off()
+tiff("Figure/Numberbycoverage.tiff", width = 6000, height = 2000, res = 600)
+ggplot(RecombinedStats_count, aes(x = Res, y = n, fill = Coverage_estimated)) +
+  geom_col(position = "dodge", alpha = 0.8) +
+  facet_wrap(~ ConjGroup, scales = "free_y") +
+  scale_fill_viridis_c(option = "C") +
+  theme_minimal()+
+  labs(x = "Resolution",
+       y = "Fragment number",
+       fill = "Calculated Coverage")
+dev.off()
+# Density and line plot
+RecombinedStats_merged <- RecombinedStats_merged %>%
+  mutate(Downscale = str_extract(Strain, "([0-9.]+x)"),
+         Downscale = factor(Downscale, 
+                            levels = c("1x","0.5x","0.4x","0.25x","0.1x")))
+RecombinedStats_summary <- RecombinedStats_merged %>%
+  group_by(ConjGroup, Downscale, Coverage_estimated, Res, recipient) %>%
+  summarise(
+    nb_fragments = n(),
+    count_samples = n_distinct(Strain),
+    .groups = "drop"
+  )
+
+recipient_colors <- c(
+  "536" = "#F75270",
+  "REL606" = "#0D1169",
+  "HS"  = "#0BA6DF"
+)
+
+tiff("Figure/Density.tiff", width = 6000, height = 3500, res = 600)
+ggplot(RecombinedStats_summary, aes(x = Coverage_estimated, y = nb_fragments, group = ConjGroup)) +
+  geom_line(color = "grey50", alpha = 0.7) +
+  geom_point(
+    data = RecombinedStats_summary %>% filter(!recipient %in% c("REL606", "HS")),
+    aes(x = Coverage_estimated, color = Res),
+    size = 2
+  )+  geom_density(
+    data = RecombinedStats_merged %>% filter(!(recipient == "536" & Res != "1x")),
+    aes(x = Coverage_estimated, y = ..scaled.. * max(RecombinedStats_summary$nb_fragments),
+        fill=recipient),
+    inherit.aes = FALSE, 
+    alpha = 0.5,adjust = 1
+  ) +
+  # geom_density(
+  #   data = RecombinedStats_merged %>% filter(Res == "1x", recipient == "536"),
+  #   aes(x = Coverage_estimated, y = ..scaled.. * max(RecombinedStats_summary$nb_fragments)),
+  #   inherit.aes = FALSE,
+  #   fill = "#E4004B",   
+  #   alpha = 0.5,
+  #   adjust = 1
+  # ) +
+  geom_point(
+    data = RecombinedStats_merged %>% filter(!(recipient == "536" & Res != "1x")),
+    aes(x = Coverage_estimated, y = -1, fill = recipient),
+    inherit.aes = FALSE,
+    shape = 22, size = 2, alpha = 0.5,
+    color = "black" ) +
+  labs(x = "Log10 Calculated coverage", y = "Fragment Number",
+       color = "Resolution", fill = "Recipient") +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "bottom") +
+  
+  scale_color_viridis_d(option = "C") +  # gradient Res
+  scale_fill_manual(values = recipient_colors) +  
+  scale_x_continuous(breaks = seq(0, 30, by = 5))+
+  scale_x_log10()
+dev.off()
+```
+
+Figure S4
+
+```{r}
+
+library(dplyr)
+library(tidyr)
+
+
+REL_20 <- read.table("K12_20bp/posREL.txt", header = FALSE)
+HS_20 <- read.table("K12_20bp/posHS.txt", header = FALSE)
+G536_20 <- read.table("K12_20bp/pos536.txt", header = FALSE)
+
+
+REL_27 <- read.table("K12_27bp/posREL.txt", header = FALSE)
+HS_27 <- read.table("K12_27bp/posHS.txt", header = FALSE)
+G536_27 <- read.table("K12_27bp/pos536.txt", header = FALSE)
+
+
+colnames(REL_20) <- colnames(HS_20) <- colnames(G536_20) <- c("pos")
+colnames(REL_27) <- colnames(HS_27) <- colnames(G536_27) <- c("pos")
+
+png("barplot_kmers.png", width = 800, height = 600)
+par(mfrow = c(3, 1), mar = c(5, 5, 4, 2)) 
+hist(REL_20$pos, breaks = 1000, col = adjustcolor("steelblue", alpha.f = 0.6), border = NA,
+     main = "Densité des k-mers - REL606", xlab = "Génome (bp)", ylab = "Nb de k-mers",
+     ylim = c(0, max(table(cut(REL_20$pos, breaks = 1000)), table(cut(REL_27$pos, breaks = 1000)))))
+hist(REL_27$pos, breaks = 1000, col = adjustcolor("steelblue1", alpha.f = 0.4), border = NA, add = TRUE)
+legend("topright", legend = c("20bp", "27bp"), fill = c("steelblue", "steelblue1"), bty = "n")
+
+
+hist(HS_20$pos, breaks = 1000, col = adjustcolor("lightblue3", alpha.f = 0.6), border = NA,
+     main = "Densité des k-mers - HS", xlab = "Génome (bp)", ylab = "Nb de k-mers",
+     ylim = c(0, max(table(cut(HS_20$pos, breaks = 1000)), table(cut(HS_27$pos, breaks = 1000)))))
+hist(HS_27$pos, breaks = 1000, col = adjustcolor("lightblue1", alpha.f = 0.4), border = NA, add = TRUE)
+legend("topright", legend = c("20bp", "27bp"), fill = c("lightblue3", "lightblue1"), bty = "n")
+
+
+hist(G536_20$pos, breaks = 1000, col = adjustcolor("pink3", alpha.f = 0.6), border = NA,
+     main = "Densité des k-mers - 536", xlab = "Génome (bp)", ylab = "Nb de k-mers",
+     ylim = c(0, max(table(cut(G536_20$pos, breaks = 1000)), table(cut(G536_27$pos, breaks = 1000)))))
+hist(G536_27$pos, breaks = 1000, col = adjustcolor("lightpink", alpha.f = 0.4), border = NA, add = TRUE)
+legend("topright", legend = c("20bp", "27bp"), fill = c("pink3", "lightpink"), bty = "n")
+
+
+
+dev.off()
+
+
+png("K12_20bp/barplot_polySNP20.png", width = 800, height = 600)
+par(mfrow = c(3, 1), mar = c(5, 5, 4, 2))
+h_REL20 <- hist(REL_20$pos, breaks = 1000, plot = FALSE)
+h_REL27 <- hist(REL_27$pos, breaks = 1000, plot = FALSE)
+
+mean_20 <- mean(h_REL20$counts)
+mean_27 <- mean(h_REL27$counts)
+cumsum_20 <- cumsum(h_REL20$counts - mean_20)
+cumsum_27 <- cumsum(h_REL27$counts - mean_27)
+
+plot(h_REL20$mids, cumsum_20, type = "l", col = "steelblue", lwd = 2,
+     main = "Sumcum - REL606", xlab = "Genome (bp)", ylab = "Cumsum", ylim = range(c(cumsum_20, cumsum_27)))
+lines(h_REL27$mids, cumsum_27, col = "steelblue1", lwd = 2, lty = 2)
+abline(h = 0, col = "gray50", lty = 2)
+legend("topright", legend = c("20bp", "27bp"), col = c("steelblue", "steelblue1"), lty = c(1, 2), lwd = 2, bty = "n")
+
+
+
+h_HS20 <- hist(HS_20$pos, breaks = 1000, plot = FALSE)
+h_HS27 <- hist(HS_27$pos, breaks = 1000, plot = FALSE)
+mean_20 <- mean(h_HS20$counts)
+mean_27 <- mean(h_HS27$counts)
+cumsum_20 <- cumsum(h_HS20$counts - mean_20)
+cumsum_27 <- cumsum(h_HS27$counts - mean_27)
+plot(h_HS20$mids, cumsum_20, type = "l", col = "lightblue3", lwd = 2,
+     main = "Sumcum - HS", xlab = "Genome (bp)", ylab = "Cumsum", ylim = range(c(cumsum_20, cumsum_27)))
+lines(h_HS27$mids, cumsum_27, col = "lightblue1", lwd = 2, lty = 2)
+abline(h = 0, col = "gray50", lty = 2)
+legend("topright", legend = c("20bp", "27bp"), col = c("lightblue3", "lightblue1"), lty = c(1, 2), lwd = 2, bty = "n")
+
+h_53620 <- hist(G536_20$pos, breaks = 1000, plot = FALSE)
+h_53627 <- hist(G536_27$pos, breaks = 1000, plot = FALSE)
+
+mean_20 <- mean(h_53620$counts)
+mean_27 <- mean(h_53627$counts)
+
+cumsum_20 <- cumsum(h_53620$counts - mean_20)
+cumsum_27 <- cumsum(h_53627$counts - mean_27)
+
+plot(h_53620$mids, cumsum_20, type = "l", col = "pink3", lwd = 2,
+     main = "Sumcum - 536", xlab = "Genome (bp)", ylab = "Cumsum", ylim = range(c(cumsum_20, cumsum_27)))
+lines(h_53627$mids, cumsum_27, col = "lightpink", lwd = 2, lty = 2)
+abline(h = 0, col = "gray50", lty = 2)
+legend("topright", legend = c("20bp", "27bp"), col = c("pink3", "lightpink"), lty = c(1, 2), lwd = 2, bty = "n")
+
+
+
+dev.off()
+
+
+
+
+########################## pré et post galK 
+
+kmer_density_from_galK <- 
+  function(pos_20, pos_27, galK_pos, name, color20, color27) {
+  step <- 100000 #every 100 kb
+  range_kb <- seq(-700000, 700000, by = step)
+  densities_20 <- sapply(range_kb, function(offset) {
+    start <- galK_pos + offset
+    end <- start + step
+    sum(pos_20$pos >= start & pos_20$pos < end) / (step / 1000)
+  })
+  densities_27 <- sapply(range_kb, function(offset) {
+    start <- galK_pos + offset
+    end <- start + step
+    sum(pos_27$pos >= start & pos_27$pos < end) / (step / 1000)
+  })
+  
+  x_labels <- paste(range_kb / 1000, "kb")
+  barplot(rbind(densities_20, densities_27),
+          beside = TRUE,
+          col = c(color20, color27),
+          names.arg = x_labels,
+          las = 2,
+          ylab = "Densité de k-mers (/kb)",
+          xlab = "Distance à galK (kb)",
+          main = paste("Densité autour de galK -", name),
+          legend.text = c("20bp", "27bp"),
+          args.legend = list(x = "topright", bty = "n"))
+}
+
+
+png("K12_20bp/Barplot_density_galK.png", width = 1000, height = 900)
+par(mfrow = c(3, 1), mar = c(6, 5, 4, 2)) 
+kmer_density_from_galK(REL_20, REL_27, 769500, "REL606", "steelblue", "steelblue1")
+kmer_density_from_galK(HS_20, HS_27, 816000, "HS", "lightblue3", "lightblue1")
+kmer_density_from_galK(G536_20, G536_27, 803500, "536", "pink3", "lightpink")
+
+dev.off()
+
+```
